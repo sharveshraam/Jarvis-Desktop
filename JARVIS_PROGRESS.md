@@ -16,6 +16,7 @@
 | System tray | Implemented: close hides the window, tray double-click/menu reopens, explicit Quit exits |
 | Gemini provider and protected key | Streaming provider implemented; no live API test because no key was configured |
 | Editable profile | Local JSON profile with user-editable name and context; included in Gemini system instruction; Settings discloses cloud transfer |
+| Reminders | Relative minute/hour/day reminders persisted in SQLite, list command, and tray balloon notification polling; due records are marked delivered |
 | Local conversation persistence | SQLite history tested |
 | Gemini key protection | Windows current-user DPAPI round-trip tested |
 | Safe local command fast path | Time/date, arithmetic, and allowlisted Notepad, Calculator, Paint, File Explorer, VS Code, and Visual Studio launch requests; tested without launching apps in tests |
@@ -32,11 +33,11 @@
 ## Verification completed
 
 - .NET 10.0.404 Release solution build: 0 warnings, 0 errors.
-- Automated tests: 19 passed, 0 failed (fast-path routing, allowlisted development-app launch, approved/canceled/rejected Desktop file actions, local RAM reporting, newest-PDF search, SQLite history, DPAPI secret round-trip, user-profile persistence/validation, Gemini SSE/profile/key placement).
+- Automated tests: 23 passed, 0 failed (fast-path routing, allowlisted development-app launch, approved/canceled/rejected Desktop file actions, local RAM reporting, newest-PDF search, SQLite conversation and reminder persistence/delivery, DPAPI secret round-trip, user-profile persistence/validation, Gemini SSE/profile/key placement).
 - Published and opened a self-contained `win-x64` single-file build.
 - Live UI smoke check: `calculate 17 * 23` returned `391` with the `Completed locally` status.
 - Gemini network streaming was not tested against a real account because no API key was configured.
 
 ## Release notes
 
-The current build is an early development milestone, not a complete release. File support currently covers Desktop folder creation, creating new .txt/.md files with approval, reading bounded text files, and locating the latest PDF across standard user folders. It still needs broader file tools, startup/global shortcut support, voice pipeline and evaluation, reminders/memory, richer workflows, broader failure tests, and an installer before release claims are appropriate.
+The current build is an early development milestone, not a complete release. File support currently covers Desktop folder creation, creating new .txt/.md files with approval, reading bounded text files, and locating the latest PDF across standard user folders. Reminders currently support relative minute/hour/day times and a tray notification. It still needs broader file tools, startup/global shortcut support, voice pipeline and evaluation, persistent memory, richer workflows, broader failure tests, and an installer before release claims are appropriate.

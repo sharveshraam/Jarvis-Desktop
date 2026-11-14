@@ -69,3 +69,14 @@ public interface IApplicationLauncher
 {
     void Start(string applicationCommand);
 }
+
+public sealed record JarvisReminder(string Id, string Title, DateTimeOffset DueAt, bool Notified);
+
+public interface IReminderStore
+{
+    Task InitializeAsync(CancellationToken cancellationToken = default);
+    Task AddAsync(JarvisReminder reminder, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<JarvisReminder>> GetUpcomingAsync(int limit = 20, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<JarvisReminder>> GetDueAsync(DateTimeOffset now, CancellationToken cancellationToken = default);
+    Task MarkNotifiedAsync(string id, CancellationToken cancellationToken = default);
+}

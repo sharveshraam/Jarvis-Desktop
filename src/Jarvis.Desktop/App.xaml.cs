@@ -16,6 +16,8 @@ public partial class App : Application
 {
     private readonly IHost _host;
     private Forms.NotifyIcon? _trayIcon;
+    private System.Windows.Threading.DispatcherTimer? _reminderTimer;
+    private bool _checkingReminders;
     public bool IsExiting { get; private set; }
 
     public App()
@@ -27,6 +29,7 @@ public partial class App : Application
                 services.AddSingleton<IConversationStore>(_ => new SqliteConversationStore(Path.Combine(appData, "jarvis.db")));
                 services.AddSingleton<ISecretStore>(_ => new DpapiSecretStore(Path.Combine(appData, "secrets")));
                 services.AddSingleton<IUserProfileStore>(_ => new JsonUserProfileStore(Path.Combine(appData, "profile.json")));
+                services.AddSingleton<IReminderStore>(_ => new SqliteReminderStore(Path.Combine(appData, "jarvis.db")));
                 services.AddSingleton(new HttpClient { BaseAddress = new Uri("https://generativelanguage.googleapis.com/"), Timeout = TimeSpan.FromSeconds(45) });
                 services.AddSingleton<IAiProvider>(sp => new GeminiProvider(sp.GetRequiredService<HttpClient>(), sp.GetRequiredService<ISecretStore>()));
                 services.AddSingleton<IActionApproval, MessageBoxActionApproval>();
@@ -47,10 +50,14 @@ public partial class App : Application
         {
             await _host.StartAsync();
             await _host.Services.GetRequiredService<IConversationStore>().InitializeAsync();
+            await _host.Services.GetRequiredService<IReminderStore>().InitializeAsync();
             var window = _host.Services.GetRequiredService<MainWindow>();
             MainWindow = window;
             InitializeTray(window);
             window.Show();
+            _reminderTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
+            _reminderTimer.Tick += ReminderTimer_Tick;
+            _reminderTimer.Start();
             base.OnStartup(e);
         }
         catch (Exception ex)
@@ -67,6 +74,7 @@ public partial class App : Application
             _trayIcon.Visible = false;
             _trayIcon.Dispose();
         }
+        _reminderTimer?.Stop();
         await _host.StopAsync(TimeSpan.FromSeconds(3));
         _host.Dispose();
         base.OnExit(e);
@@ -99,5 +107,23 @@ public partial class App : Application
         window.Show();
         if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
         window.Activate();
+    }
+
+    private async void ReminderTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_checkingReminders) return;
+        _checkingReminders = true;
+        try
+        {
+            var store = _host.Services.GetRequiredService<IReminderStore>();
+            var due = await store.GetDueAsync(DateTimeOffset.UtcNow);
+            if (due.Count == 0) return;
+            var summary = string.Join("; ", due.Take(3).Select(reminder => reminder.Title));
+            if (due.Count > 3) summary += $"; and {due.Count - 3} more";
+            _trayIcon?.ShowBalloonTip(8_000, "JARVIS reminder", summary, Forms.ToolTipIcon.Info);
+            foreach (var reminder in due) await store.MarkNotifiedAsync(reminder.Id);
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Reminder notification failed: {ex.Message}"); }
+        finally { _checkingReminders = false; }
     }
 }

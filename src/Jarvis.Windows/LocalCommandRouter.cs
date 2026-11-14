@@ -13,14 +13,16 @@ public sealed partial class LocalCommandRouter
     private readonly ISystemInfoProvider? _systemInfo;
     private readonly ILocalFileSearch? _fileSearch;
     private readonly IApplicationLauncher? _applicationLauncher;
+    private readonly IReminderStore? _reminders;
 
-    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null, ISystemInfoProvider? systemInfo = null, ILocalFileSearch? fileSearch = null, IApplicationLauncher? applicationLauncher = null)
+    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null, ISystemInfoProvider? systemInfo = null, ILocalFileSearch? fileSearch = null, IApplicationLauncher? applicationLauncher = null, IReminderStore? reminders = null)
     {
         _approval = approval;
         _files = files;
         _systemInfo = systemInfo;
         _fileSearch = fileSearch;
         _applicationLauncher = applicationLauncher;
+        _reminders = reminders;
     }
 
     private static readonly IReadOnlyDictionary<string, string> Applications = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -41,6 +43,35 @@ public sealed partial class LocalCommandRouter
     {
         var normalized = text.Trim();
         var now = DateTimeOffset.Now;
+        var setReminder = ReminderPattern().Match(normalized);
+        if (setReminder.Success)
+        {
+            if (_reminders is null) return new(true, "Reminders are unavailable in this session.");
+            if (!int.TryParse(setReminder.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var amount) || amount <= 0)
+                return new(true, "Choose a reminder time greater than zero.");
+            var duration = setReminder.Groups[2].Value.ToLowerInvariant() switch
+            {
+                "minute" or "minutes" => TimeSpan.FromMinutes(amount),
+                "hour" or "hours" => TimeSpan.FromHours(amount),
+                "day" or "days" => TimeSpan.FromDays(amount),
+                _ => TimeSpan.Zero
+            };
+            if (duration <= TimeSpan.Zero || duration > TimeSpan.FromDays(365))
+                return new(true, "Choose a reminder within the next year.");
+            var title = setReminder.Groups[3].Value.Trim().TrimEnd('.', '!');
+            if (title.Length is 0 or > 160) return new(true, "Reminder text must be between 1 and 160 characters.");
+            var reminder = new JarvisReminder(Guid.NewGuid().ToString("N"), title, DateTimeOffset.UtcNow.Add(duration), false);
+            await _reminders.AddAsync(reminder, cancellationToken);
+            return new(true, $"Reminder set for {reminder.DueAt.ToLocalTime():g}: {title}");
+        }
+        if (Regex.IsMatch(normalized, @"^(?:show|list)\s+(?:my\s+)?reminders\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            if (_reminders is null) return new(true, "Reminders are unavailable in this session.");
+            var upcoming = await _reminders.GetUpcomingAsync(cancellationToken: cancellationToken);
+            return new(true, upcoming.Count == 0
+                ? "You have no upcoming reminders."
+                : string.Join(Environment.NewLine, upcoming.Select(item => $"{item.DueAt.ToLocalTime():g} — {item.Title}")));
+        }
         var folder = CreateFolderPattern().Match(normalized);
         if (folder.Success)
         {
@@ -191,6 +222,9 @@ public sealed partial class LocalCommandRouter
 
     [GeneratedRegex("^read\\s+(?:the\\s+)?file\\s+(.+?)\\s+(?:on|from)\\s+(?:my\\s+)?desktop[.!]?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ReadTextFilePattern();
+
+    [GeneratedRegex("^(?:remind me|set a reminder) in (\\d{1,6})\\s+(minutes?|hours?|days?)\\s+to\\s+(.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ReminderPattern();
 
     [GeneratedRegex(@"^(?:calculate|what is)\s+(.+?)\s*\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CalculationPattern();
