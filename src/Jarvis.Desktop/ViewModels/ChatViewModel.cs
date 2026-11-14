@@ -17,18 +17,23 @@ public sealed class ChatViewModel : INotifyPropertyChanged
     private readonly IConversationStore _store;
     private readonly LocalCommandRouter _local;
     private readonly IUserProfileStore _profileStore;
+    private readonly IUserPreferencesStore _preferencesStore;
+    private readonly ISpeechOutputService _speechOutput;
     private string _input = string.Empty;
     private string _status = "Local commands ready";
     private JarvisMode _mode = JarvisMode.Personal;
     private bool _isBusy;
     private CancellationTokenSource? _activeRequest;
+    private CancellationTokenSource? _speechRequest;
 
-    public ChatViewModel(IAiProvider ai, IConversationStore store, LocalCommandRouter local, IUserProfileStore profileStore)
+    public ChatViewModel(IAiProvider ai, IConversationStore store, LocalCommandRouter local, IUserProfileStore profileStore, IUserPreferencesStore preferencesStore, ISpeechOutputService speechOutput)
     {
         _ai = ai;
         _store = store;
         _local = local;
         _profileStore = profileStore;
+        _preferencesStore = preferencesStore;
+        _speechOutput = speechOutput;
         Messages.CollectionChanged += (_, _) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsEmpty)));
         SendCommand = new AsyncRelayCommand(SendAsync, () => !IsBusy && !string.IsNullOrWhiteSpace(Input));
         CancelCommand = new RelayCommand(Cancel, () => IsBusy);
@@ -94,12 +99,14 @@ public sealed class ChatViewModel : INotifyPropertyChanged
                 streamedMessage = streamedMessage with { Content = answer };
                 if (Messages.Count == 0 || Messages[^1].Id != streamedMessage.Id) Messages.Add(streamedMessage);
                 await _store.AddAsync(streamedMessage);
+                await SpeakIfEnabledAsync(answer);
                 return;
             }
 
             var assistant = NewMessage(ChatRole.Assistant, answer);
             Messages.Add(assistant);
             await _store.AddAsync(assistant);
+            await SpeakIfEnabledAsync(answer);
         }
         catch (OperationCanceledException)
         {
@@ -123,7 +130,33 @@ public sealed class ChatViewModel : INotifyPropertyChanged
         }
     }
 
-    public void Cancel() => _activeRequest?.Cancel();
+    public void Cancel()
+    {
+        _activeRequest?.Cancel();
+        _speechRequest?.Cancel();
+    }
+
+    private async Task SpeakIfEnabledAsync(string text)
+    {
+        UserPreferences preferences;
+        try { preferences = await _preferencesStore.GetAsync(); }
+        catch { return; }
+        if (!preferences.SpeakResponses) return;
+
+        var speechRequest = new CancellationTokenSource();
+        _speechRequest?.Cancel();
+        _speechRequest?.Dispose();
+        _speechRequest = speechRequest;
+        Status = "Speaking response…";
+        try { await _speechOutput.SpeakAsync(text, speechRequest.Token); }
+        catch (OperationCanceledException) { Status = "Speech stopped"; }
+        catch (Exception ex) { Status = $"Speech unavailable: {ex.Message}"; }
+        finally
+        {
+            if (ReferenceEquals(_speechRequest, speechRequest)) _speechRequest = null;
+            speechRequest.Dispose();
+        }
+    }
 
     private async Task LoadAsync()
     {

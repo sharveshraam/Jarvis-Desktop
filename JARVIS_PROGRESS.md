@@ -26,7 +26,7 @@
 | System information | RAM usage read directly from Windows; local routing covered by a deterministic test |
 | File discovery | Bounded local recursive PDF search across Desktop, Documents, and Downloads; skips junctions and reports when the search cap is reached |
 | Startup and global shortcut | Planned |
-| Speech recognition and TTS | Not implemented; no benchmark claimed |
+| Speech recognition and TTS | Local System.Speech dictation button with review-before-send; optional read-aloud preference off by default; live microphone and voice checks pending |
 | Reminders, memory, background tasks | Planned |
 | Windows build workflow | Added; portable ZIP artifact |
 | Installer | Not implemented yet |
@@ -41,4 +41,4 @@
 
 ## Release notes
 
-The current build is an early development milestone, not a complete release. File support currently covers Desktop folder creation, creating new .txt/.md files with approval, reading bounded text files, and locating the latest PDF across standard user folders. Reminders currently support relative minute/hour/day times and a tray notification. It still needs broader file tools, voice pipeline and evaluation, persistent memory, richer workflows, broader failure tests, and an installer before release claims are appropriate.
+The current build is an early development milestone, not a complete release. File support currently covers Desktop folder creation, creating new .txt/.md files with approval, reading bounded text files, and locating the latest PDF across standard user folders. Reminders currently support relative minute/hour/day times and a tray notification. Voice APIs are wired, but microphone/device behavior and speech latency have not been verified on this locked desktop. It still needs broader file tools, persistent memory, richer workflows, broader failure tests, and an installer before release claims are appropriate.

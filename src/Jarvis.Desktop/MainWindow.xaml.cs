@@ -24,6 +24,7 @@ public partial class MainWindow : Window
     private bool _hotkeyRegistered;
     private int _registeredHotkeyId;
     private string? _registeredHotkey;
+    private CancellationTokenSource? _voiceRequest;
 
     public MainWindow(ChatViewModel viewModel)
     {
@@ -120,6 +121,41 @@ public partial class MainWindow : Window
         {
             e.Handled = true;
             ((ChatViewModel)DataContext).SendCommand.Execute(null);
+        }
+    }
+
+    private async void Voice_Click(object sender, RoutedEventArgs e)
+    {
+        if (_voiceRequest is not null)
+        {
+            _voiceRequest.Cancel();
+            return;
+        }
+        var request = new CancellationTokenSource();
+        _voiceRequest = request;
+        var viewModel = (ChatViewModel)DataContext;
+        VoiceButton.Content = "■";
+        viewModel.Status = "Listening on this PC…";
+        try
+        {
+            var transcript = await App.Current.Services().GetRequiredService<ISpeechInputService>().ListenOnceAsync(request.Token);
+            if (string.IsNullOrWhiteSpace(transcript)) viewModel.Status = "No speech recognized";
+            else
+            {
+                viewModel.Input = string.IsNullOrWhiteSpace(viewModel.Input)
+                    ? transcript
+                    : $"{viewModel.Input.TrimEnd()} {transcript}";
+                viewModel.Status = "Speech added to the input box. Review it before sending.";
+                InputBox.Focus();
+            }
+        }
+        catch (OperationCanceledException) { viewModel.Status = "Listening stopped"; }
+        catch (Exception ex) { viewModel.Status = $"Microphone unavailable: {ex.Message}"; }
+        finally
+        {
+            if (ReferenceEquals(_voiceRequest, request)) _voiceRequest = null;
+            request.Dispose();
+            VoiceButton.Content = "🎙";
         }
     }
 

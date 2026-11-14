@@ -117,8 +117,8 @@ public sealed class PersistenceTests
             var path = Path.Combine(directory, "preferences.json");
             var store = new JsonUserPreferencesStore(path);
             Assert.Equal(UserPreferences.Default, await store.GetAsync());
-            await store.SaveAsync(new UserPreferences("  Ctrl+Shift+Space  ", true));
-            Assert.Equal(new UserPreferences("Ctrl+Shift+Space", true), await new JsonUserPreferencesStore(path).GetAsync());
+            await store.SaveAsync(new UserPreferences("  Ctrl+Shift+Space  ", true, true));
+            Assert.Equal(new UserPreferences("Ctrl+Shift+Space", true, true), await new JsonUserPreferencesStore(path).GetAsync());
         }
         finally
         {

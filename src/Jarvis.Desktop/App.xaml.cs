@@ -31,6 +31,8 @@ public partial class App : Application
                 services.AddSingleton<IUserProfileStore>(_ => new JsonUserProfileStore(Path.Combine(appData, "profile.json")));
                 services.AddSingleton<IUserPreferencesStore>(_ => new JsonUserPreferencesStore(Path.Combine(appData, "preferences.json")));
                 services.AddSingleton<IStartupRegistration, WindowsStartupRegistration>();
+                services.AddSingleton<ISpeechInputService, WindowsSpeechInputService>();
+                services.AddSingleton<ISpeechOutputService, WindowsSpeechOutputService>();
                 services.AddSingleton<IReminderStore>(_ => new SqliteReminderStore(Path.Combine(appData, "jarvis.db")));
                 services.AddSingleton(new HttpClient { BaseAddress = new Uri("https://generativelanguage.googleapis.com/"), Timeout = TimeSpan.FromSeconds(45) });
                 services.AddSingleton<IAiProvider>(sp => new GeminiProvider(sp.GetRequiredService<HttpClient>(), sp.GetRequiredService<ISecretStore>()));

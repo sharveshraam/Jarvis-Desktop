@@ -64,9 +64,10 @@
       </DockPanel>
       <Border Background="{StaticResource SurfaceBrush}" CornerRadius="12" Padding="10,8">
         <Grid>
-          <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <TextBox x:Name="InputBox" Grid.Column="0" Text="{Binding Input, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" Foreground="{StaticResource TextBrush}" BorderThickness="0" Padding="3,8" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="100" VerticalScrollBarVisibility="Auto" KeyDown="Input_KeyDown" ToolTip="Type a message. Enter sends; Shift+Enter adds a line."/>
-          <Button Grid.Column="1" Content="↑" Command="{Binding SendCommand}" Background="{StaticResource AccentBrush}" Foreground="#0D1519" FontSize="18" FontWeight="Bold" BorderThickness="0" Width="38" Height="38" VerticalAlignment="Bottom" Margin="8,0,0,0"/>
+          <Button x:Name="VoiceButton" Grid.Column="1" Content="🎙" Click="Voice_Click" Background="#303A46" Foreground="{StaticResource TextBrush}" FontSize="16" BorderThickness="0" Width="38" Height="38" VerticalAlignment="Bottom" Margin="8,0,0,0" ToolTip="Push to talk. Speech stays on this PC until you send it."/>
+          <Button Grid.Column="2" Content="↑" Command="{Binding SendCommand}" Background="{StaticResource AccentBrush}" Foreground="#0D1519" FontSize="18" FontWeight="Bold" BorderThickness="0" Width="38" Height="38" VerticalAlignment="Bottom" Margin="8,0,0,0"/>
         </Grid>
       </Border>
       <TextBlock Text="Local commands: ‘open Notepad’, ‘what time is it?’, ‘calculate 12 * 4’. Other messages go to Gemini." FontSize="10" Foreground="#778391" Margin="4,7,4,0"/>

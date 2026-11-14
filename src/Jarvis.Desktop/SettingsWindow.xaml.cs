@@ -31,6 +31,7 @@ public partial class SettingsWindow : Window
                 var preferences = await _preferencesStore.GetAsync();
                 GlobalShortcutBox.Text = preferences.GlobalShortcut;
                 RunAtStartupCheckBox.IsChecked = preferences.RunAtStartup;
+                SpeakResponsesCheckBox.IsChecked = preferences.SpeakResponses;
             }
             catch (Exception ex) { MessageBox.Show(this, ex.Message, "Could not read saved key", MessageBoxButton.OK, MessageBoxImage.Warning); }
         };
@@ -40,7 +41,7 @@ public partial class SettingsWindow : Window
     {
         NewApiKey = string.IsNullOrWhiteSpace(ApiKeyBox.Password) ? null : ApiKeyBox.Password.Trim();
         NewProfile = new UserProfile(ProfileNameBox.Text, ProfileContextBox.Text);
-        NewPreferences = new UserPreferences(GlobalShortcutBox.Text, RunAtStartupCheckBox.IsChecked == true);
+        NewPreferences = new UserPreferences(GlobalShortcutBox.Text, RunAtStartupCheckBox.IsChecked == true, SpeakResponsesCheckBox.IsChecked == true);
         DialogResult = true;
     }
 

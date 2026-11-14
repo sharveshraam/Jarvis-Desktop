@@ -21,7 +21,7 @@ public interface IUserProfileStore
     Task SaveAsync(UserProfile profile, CancellationToken cancellationToken = default);
 }
 
-public sealed record UserPreferences(string GlobalShortcut, bool RunAtStartup)
+public sealed record UserPreferences(string GlobalShortcut, bool RunAtStartup, bool SpeakResponses = false)
 {
     public static UserPreferences Default { get; } = new("Ctrl+Shift+F12", false);
 }
@@ -35,6 +35,16 @@ public interface IUserPreferencesStore
 public interface IStartupRegistration
 {
     void SetEnabled(bool enabled);
+}
+
+public interface ISpeechInputService
+{
+    Task<string?> ListenOnceAsync(CancellationToken cancellationToken = default);
+}
+
+public interface ISpeechOutputService
+{
+    Task SpeakAsync(string text, CancellationToken cancellationToken = default);
 }
 
 public sealed record ChatResponse(string Text, string Model, TimeSpan Elapsed);
