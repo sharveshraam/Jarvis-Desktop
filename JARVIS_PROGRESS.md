@@ -30,18 +30,18 @@
 | System information | RAM usage read directly from Windows; local routing covered by a deterministic test |
 | File discovery | Bounded local recursive PDF search across Desktop, Documents, and Downloads; skips junctions and reports when the search cap is reached |
 | Speech recognition and TTS | Local System.Speech dictation button with review-before-send; optional read-aloud preference off by default; live microphone and voice checks pending |
-| Background task queues and checkpoints | Planned |
+| Background project jobs | First slice implemented: approved dotnet build/test jobs run off the UI thread; task state/progress/output persist in SQLite; queued jobs can resume after restart, while in-progress work is marked interrupted and never replayed; cancel and tray completion notifications are wired |
 | Windows build workflow | Added; portable ZIP artifact |
 | Installer | Not implemented yet |
 
 ## Verification completed
 
 - .NET 10.0.404 Release solution build: 0 warnings, 0 errors.
-- Automated tests: 40 passed, 0 failed (previous coverage plus local memory and configurable Gemini model routing/persistence).
+- Automated tests: 44 passed, 0 failed (previous coverage plus persisted task progress, restart interruption behavior, project job routing, and approval-gated task queueing).
 - Latest full Release solution build: 0 warnings, 0 errors.
 - An earlier development milestone was published and opened as a self-contained `win-x64` single-file build; latest structured-tool and speech changes still need a fresh runtime smoke check.
 - Live UI smoke check: `calculate 17 * 23` returned `391` with the `Completed locally` status.
-- Gemini network streaming was not tested against a real account because no API key was configured.
+- A live Gemini probe was attempted after the user restored internet access, but the current Windows-user JARVIS key store has no API key; the API request was not sent. The live app UI was also unresponsive while the captured screen was black/locked.
 
 ## Release notes
 

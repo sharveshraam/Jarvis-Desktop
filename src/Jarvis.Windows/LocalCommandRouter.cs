@@ -15,8 +15,9 @@ public sealed partial class LocalCommandRouter
     private readonly IApplicationLauncher? _applicationLauncher;
     private readonly IReminderStore? _reminders;
     private readonly IMemoryStore? _memory;
+    private readonly IProjectTaskCoordinator? _projectTasks;
 
-    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null, ISystemInfoProvider? systemInfo = null, ILocalFileSearch? fileSearch = null, IApplicationLauncher? applicationLauncher = null, IReminderStore? reminders = null, IMemoryStore? memory = null)
+    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null, ISystemInfoProvider? systemInfo = null, ILocalFileSearch? fileSearch = null, IApplicationLauncher? applicationLauncher = null, IReminderStore? reminders = null, IMemoryStore? memory = null, IProjectTaskCoordinator? projectTasks = null)
     {
         _approval = approval;
         _files = files;
@@ -25,6 +26,7 @@ public sealed partial class LocalCommandRouter
         _applicationLauncher = applicationLauncher;
         _reminders = reminders;
         _memory = memory;
+        _projectTasks = projectTasks;
     }
 
     private static readonly IReadOnlyDictionary<string, string> Applications = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -45,6 +47,35 @@ public sealed partial class LocalCommandRouter
     {
         var normalized = text.Trim();
         var now = DateTimeOffset.Now;
+        if (Regex.IsMatch(normalized, @"^(?:build|compile)(?:\s+my)?\s+project\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+            return await QueueProjectTaskAsync(JarvisBackgroundTaskKind.BuildProject, cancellationToken);
+        if (Regex.IsMatch(normalized, @"^(?:test|run tests on|run the tests for)(?:\s+my)?\s+project\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+            return await QueueProjectTaskAsync(JarvisBackgroundTaskKind.TestProject, cancellationToken);
+        if (Regex.IsMatch(normalized, @"^(?:show|list)(?:\s+my)?\s+(?:background )?project tasks\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            if (_projectTasks is null) return new(true, "Background project tasks are unavailable.", false);
+            var tasks = await _projectTasks.GetRecentAsync(10, cancellationToken);
+            return new(true, tasks.Count == 0 ? "No project tasks have run yet." : string.Join(Environment.NewLine,
+                tasks.Select(t => $"{t.Id} · {t.Kind} · {t.State} · {t.Stage}")));
+        }
+        var inspectTask = Regex.Match(normalized, @"^(?:show|inspect)(?:\s+the)?\s+task\s+([a-f0-9]{4,8})$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (inspectTask.Success)
+        {
+            if (_projectTasks is null) return new(true, "Background project tasks are unavailable.", false);
+            var matches = (await _projectTasks.GetRecentAsync(100, cancellationToken))
+                .Where(t => t.Id.StartsWith(inspectTask.Groups[1].Value, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
+            if (matches.Length != 1) return new(true, matches.Length == 0 ? "Task not found." : "That task ID is ambiguous; use more characters.", false);
+            var task = matches[0];
+            var details = $"{task.Id} · {task.Kind} · {task.State} · {task.Stage}\n{task.Result ?? "No output yet."}";
+            return new(true, details.Length <= 5000 ? details : details[..5000]);
+        }
+        var cancelTask = Regex.Match(normalized, @"^cancel task\s+([a-f0-9]{4,8})$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (cancelTask.Success)
+        {
+            if (_projectTasks is null) return new(true, "Background project tasks are unavailable.", false);
+            var canceled = await _projectTasks.CancelAsync(cancelTask.Groups[1].Value, cancellationToken);
+            return new(true, canceled ? "Cancellation requested." : "That task is not active or could not be found.", canceled);
+        }
         var remember = Regex.Match(normalized, @"^remember(?:\s+that)?\s+(.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (remember.Success)
         {
@@ -169,6 +200,13 @@ public sealed partial class LocalCommandRouter
         }
 
         return new(false);
+    }
+
+    private async Task<LocalCommandResult> QueueProjectTaskAsync(JarvisBackgroundTaskKind kind, CancellationToken cancellationToken)
+    {
+        if (_projectTasks is null) return new(true, "Background project tasks are unavailable.", false);
+        var task = await _projectTasks.QueueAsync(kind, cancellationToken);
+        return new(true, $"Queued {kind} as task {task.Id}. I’ll run it in the background; use ‘show project tasks’ to check progress.");
     }
 
     public async Task<LocalCommandResult> CreateDesktopFolderAsync(string name, CancellationToken cancellationToken = default)

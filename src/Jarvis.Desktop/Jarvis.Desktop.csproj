@@ -14,5 +14,6 @@
     <ProjectReference Include="..\Jarvis.AI\Jarvis.AI.csproj" />
     <ProjectReference Include="..\Jarvis.Infrastructure\Jarvis.Infrastructure.csproj" />
     <ProjectReference Include="..\Jarvis.Windows\Jarvis.Windows.csproj" />
+    <ProjectReference Include="..\Jarvis.Agent\Jarvis.Agent.csproj" />
   </ItemGroup>
 </Project>

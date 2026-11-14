@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.IO;
 using System.Windows;
 using Jarvis.AI;
+using Jarvis.Agent;
 using Jarvis.Core;
 using Jarvis.Desktop.ViewModels;
 using Jarvis.Infrastructure;
@@ -35,6 +36,10 @@ public partial class App : Application
                 services.AddSingleton<ISpeechOutputService, WindowsSpeechOutputService>();
                 services.AddSingleton<IReminderStore>(_ => new SqliteReminderStore(Path.Combine(appData, "jarvis.db")));
                 services.AddSingleton<IMemoryStore>(_ => new SqliteMemoryStore(Path.Combine(appData, "jarvis.db")));
+                services.AddSingleton<IBackgroundTaskStore>(_ => new SqliteBackgroundTaskStore(Path.Combine(appData, "jarvis.db")));
+                services.AddSingleton<BackgroundTaskCoordinator>();
+                services.AddSingleton<IProjectTaskCoordinator>(sp => sp.GetRequiredService<BackgroundTaskCoordinator>());
+                services.AddHostedService(sp => sp.GetRequiredService<BackgroundTaskCoordinator>());
                 services.AddSingleton(new HttpClient { BaseAddress = new Uri("https://generativelanguage.googleapis.com/"), Timeout = TimeSpan.FromSeconds(45) });
                 services.AddSingleton<IAiProvider>(sp => new GeminiProvider(
                     sp.GetRequiredService<HttpClient>(), sp.GetRequiredService<ISecretStore>(),
@@ -65,6 +70,13 @@ public partial class App : Application
             await _host.Services.GetRequiredService<IConversationStore>().InitializeAsync();
             await _host.Services.GetRequiredService<IReminderStore>().InitializeAsync();
             await _host.Services.GetRequiredService<IMemoryStore>().InitializeAsync();
+            var backgroundStore = _host.Services.GetRequiredService<IBackgroundTaskStore>();
+            await backgroundStore.InitializeAsync();
+            await backgroundStore.MarkRunningInterruptedAsync();
+            var taskCoordinator = _host.Services.GetRequiredService<BackgroundTaskCoordinator>();
+            taskCoordinator.TaskFinished += task => Dispatcher.BeginInvoke(() =>
+                _trayIcon?.ShowBalloonTip(8_000, $"JARVIS task {task.State}",
+                    $"{task.Kind}: {task.Result?.Split(Environment.NewLine).FirstOrDefault()}", Forms.ToolTipIcon.Info));
             var window = _host.Services.GetRequiredService<MainWindow>();
             MainWindow = window;
             InitializeTray(window);
@@ -75,6 +87,7 @@ public partial class App : Application
             _reminderTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
             _reminderTimer.Tick += ReminderTimer_Tick;
             _reminderTimer.Start();
+            await taskCoordinator.RecoverQueuedAsync();
             base.OnStartup(e);
         }
         catch (Exception ex)

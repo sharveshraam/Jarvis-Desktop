@@ -33,6 +33,21 @@ public sealed class LocalCommandRouterTests
         Assert.False(result.Handled);
     }
 
+    [Theory]
+    [InlineData("build project", JarvisBackgroundTaskKind.BuildProject)]
+    [InlineData("test my project", JarvisBackgroundTaskKind.TestProject)]
+    public async Task QueuesAllowlistedProjectOperations(string prompt, JarvisBackgroundTaskKind expected)
+    {
+        var coordinator = new FakeProjectTaskCoordinator();
+        var router = new LocalCommandRouter(projectTasks: coordinator);
+        var result = await router.TryRunAsync(prompt);
+        Assert.True(result.Handled);
+        Assert.Equal(expected, coordinator.QueuedKind);
+        Assert.Contains("background", result.Response, StringComparison.OrdinalIgnoreCase);
+        var details = await router.TryRunAsync("show task 1234abcd");
+        Assert.Contains("Queued", details.Response);
+    }
+
     [Fact]
     public async Task CreatesDesktopFolderOnlyAfterApproval()
     {
@@ -196,5 +211,21 @@ public sealed class LocalCommandRouterTests
     {
         public string? LastCommand { get; private set; }
         public void Start(string applicationCommand) => LastCommand = applicationCommand;
+    }
+
+    private sealed class FakeProjectTaskCoordinator : IProjectTaskCoordinator
+    {
+        public JarvisBackgroundTaskKind? QueuedKind { get; private set; }
+        private readonly List<JarvisBackgroundTask> _tasks = [];
+        public Task<JarvisBackgroundTask> QueueAsync(JarvisBackgroundTaskKind kind, CancellationToken cancellationToken = default)
+        {
+            QueuedKind = kind;
+            var now = DateTimeOffset.UtcNow;
+            var task = new JarvisBackgroundTask("1234abcd", kind, JarvisBackgroundTaskState.Queued, 0, "Queued", null, now, now);
+            _tasks.Add(task);
+            return Task.FromResult(task);
+        }
+        public Task<IReadOnlyList<JarvisBackgroundTask>> GetRecentAsync(int limit = 20, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<JarvisBackgroundTask>>(_tasks.Take(limit).ToArray());
+        public Task<bool> CancelAsync(string id, CancellationToken cancellationToken = default) => Task.FromResult(true);
     }
 }

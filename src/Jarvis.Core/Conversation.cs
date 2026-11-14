@@ -117,6 +117,29 @@ public sealed record JarvisReminder(string Id, string Title, DateTimeOffset DueA
 
 public sealed record JarvisMemory(string Id, string Content, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
 
+public enum JarvisBackgroundTaskKind { BuildProject, TestProject }
+public enum JarvisBackgroundTaskState { Queued, Running, Succeeded, Failed, Canceled, Interrupted }
+public sealed record JarvisBackgroundTask(string Id, JarvisBackgroundTaskKind Kind, JarvisBackgroundTaskState State,
+    int ProgressPercent, string Stage, string? Result, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+
+public interface IBackgroundTaskStore
+{
+    Task InitializeAsync(CancellationToken cancellationToken = default);
+    Task AddAsync(JarvisBackgroundTask task, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<JarvisBackgroundTask>> GetQueuedAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<JarvisBackgroundTask>> GetRecentAsync(int limit = 20, CancellationToken cancellationToken = default);
+    Task<JarvisBackgroundTask?> GetAsync(string id, CancellationToken cancellationToken = default);
+    Task UpdateAsync(JarvisBackgroundTask task, CancellationToken cancellationToken = default);
+    Task<int> MarkRunningInterruptedAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IProjectTaskCoordinator
+{
+    Task<JarvisBackgroundTask> QueueAsync(JarvisBackgroundTaskKind kind, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<JarvisBackgroundTask>> GetRecentAsync(int limit = 20, CancellationToken cancellationToken = default);
+    Task<bool> CancelAsync(string id, CancellationToken cancellationToken = default);
+}
+
 public interface IMemoryStore
 {
     Task InitializeAsync(CancellationToken cancellationToken = default);

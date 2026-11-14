@@ -14,6 +14,7 @@
 - `Jarvis.AI`: provider interface and Gemini REST implementation.
 - `Jarvis.Infrastructure`: SQLite conversation store and DPAPI secret store.
 - `Jarvis.Windows`: allowlisted process launch, folder operations and system facts.
+- `Jarvis.Agent`: bounded persistent background project-job queue and runner.
 - `Jarvis.Desktop`: WPF shell, view models, composition and user approvals.
 - `Jarvis.Tests`: unit tests for fast-path parsing and tool validation.
 
@@ -25,6 +26,7 @@
 4. Tool requests are parsed and validated locally; the model never receives shell access.
 5. Actions that modify files are shown for approval before execution, then verified and reported.
 6. User and assistant messages are persisted in SQLite under `%LOCALAPPDATA%\Jarvis`.
+7. Approved project build/test requests enter a FIFO queue and run as fixed `dotnet build/test --no-restore` commands outside the chat handler. Progress and bounded output are persisted. Queued work is safe to resume; a task interrupted while running is marked and never replayed automatically.
 
 ## Decisions
 
@@ -44,3 +46,5 @@
 - Cloud requests are explicit and should disclose what content is sent.
 - Long-term memory is stored locally and is never automatically appended to Gemini context.
 - Destructive or externally visible operations remain approval-gated.
+- Project build/test jobs require approval before starting because build targets and tests can execute project-defined code.
+- Background jobs are currently limited to one active operation and two fixed .NET workflows; pause/resume, priorities, other language toolchains, and multi-step checkpoint recovery remain open work.

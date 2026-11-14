@@ -25,6 +25,10 @@ dotnet publish src/Jarvis.Desktop/Jarvis.Desktop.csproj -c Release -r win-x64 --
 
 The published application contains no API key. Configure the key from JARVIS Settings; it is protected for the current Windows user with DPAPI.
 
+## Project tasks
+
+Select a project workspace in Settings, then ask JARVIS to `build project` or `test project`. These fixed .NET commands require confirmation and run in the background without restoring packages. Use `show project tasks` to list jobs, `show task <id>` for the output, and `cancel task <id>` to stop an active job. Running jobs interrupted by an app restart are recorded and are not rerun automatically. The current task runner supports .NET solutions and projects only.
+
 ## Privacy
 
 Conversation history and settings live under `%LOCALAPPDATA%\Jarvis`. The Gemini API key is protected using Windows DPAPI. When cloud chat is used, the text of the current conversation is sent to Google Gemini. Local quick commands do not require network access. JARVIS does not record audio or capture the screen in the background.
