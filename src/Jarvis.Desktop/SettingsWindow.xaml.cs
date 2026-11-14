@@ -7,14 +7,17 @@ public partial class SettingsWindow : Window
 {
     private readonly ISecretStore _secretStore;
     private readonly IUserProfileStore _profileStore;
+    private readonly IUserPreferencesStore _preferencesStore;
     public string? NewApiKey { get; private set; }
     public UserProfile? NewProfile { get; private set; }
+    public UserPreferences? NewPreferences { get; private set; }
 
-    public SettingsWindow(ISecretStore secretStore, IUserProfileStore profileStore)
+    public SettingsWindow(ISecretStore secretStore, IUserProfileStore profileStore, IUserPreferencesStore preferencesStore)
     {
         InitializeComponent();
         _secretStore = secretStore;
         _profileStore = profileStore;
+        _preferencesStore = preferencesStore;
         Loaded += async (_, _) =>
         {
             try
@@ -25,6 +28,9 @@ public partial class SettingsWindow : Window
                 var profile = await _profileStore.GetAsync();
                 ProfileNameBox.Text = profile.DisplayName;
                 ProfileContextBox.Text = profile.PersonalContext;
+                var preferences = await _preferencesStore.GetAsync();
+                GlobalShortcutBox.Text = preferences.GlobalShortcut;
+                RunAtStartupCheckBox.IsChecked = preferences.RunAtStartup;
             }
             catch (Exception ex) { MessageBox.Show(this, ex.Message, "Could not read saved key", MessageBoxButton.OK, MessageBoxImage.Warning); }
         };
@@ -34,6 +40,7 @@ public partial class SettingsWindow : Window
     {
         NewApiKey = string.IsNullOrWhiteSpace(ApiKeyBox.Password) ? null : ApiKeyBox.Password.Trim();
         NewProfile = new UserProfile(ProfileNameBox.Text, ProfileContextBox.Text);
+        NewPreferences = new UserPreferences(GlobalShortcutBox.Text, RunAtStartupCheckBox.IsChecked == true);
         DialogResult = true;
     }
 

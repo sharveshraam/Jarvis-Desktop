@@ -29,6 +29,8 @@ public partial class App : Application
                 services.AddSingleton<IConversationStore>(_ => new SqliteConversationStore(Path.Combine(appData, "jarvis.db")));
                 services.AddSingleton<ISecretStore>(_ => new DpapiSecretStore(Path.Combine(appData, "secrets")));
                 services.AddSingleton<IUserProfileStore>(_ => new JsonUserProfileStore(Path.Combine(appData, "profile.json")));
+                services.AddSingleton<IUserPreferencesStore>(_ => new JsonUserPreferencesStore(Path.Combine(appData, "preferences.json")));
+                services.AddSingleton<IStartupRegistration, WindowsStartupRegistration>();
                 services.AddSingleton<IReminderStore>(_ => new SqliteReminderStore(Path.Combine(appData, "jarvis.db")));
                 services.AddSingleton(new HttpClient { BaseAddress = new Uri("https://generativelanguage.googleapis.com/"), Timeout = TimeSpan.FromSeconds(45) });
                 services.AddSingleton<IAiProvider>(sp => new GeminiProvider(sp.GetRequiredService<HttpClient>(), sp.GetRequiredService<ISecretStore>()));
@@ -55,6 +57,9 @@ public partial class App : Application
             MainWindow = window;
             InitializeTray(window);
             window.Show();
+            var preferences = await _host.Services.GetRequiredService<IUserPreferencesStore>().GetAsync();
+            var shortcutError = window.ConfigureGlobalShortcut(preferences.GlobalShortcut);
+            if (shortcutError is not null) ((ChatViewModel)window.DataContext).Status = shortcutError;
             _reminderTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
             _reminderTimer.Tick += ReminderTimer_Tick;
             _reminderTimer.Start();

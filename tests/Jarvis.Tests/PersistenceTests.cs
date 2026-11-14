@@ -107,4 +107,46 @@ public sealed class PersistenceTests
             }
         }
     }
+
+    [Fact]
+    public async Task UserPreferencesPersistShortcutAndStartupChoice()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"jarvis-prefs-test-{Guid.NewGuid():N}");
+        try
+        {
+            var path = Path.Combine(directory, "preferences.json");
+            var store = new JsonUserPreferencesStore(path);
+            Assert.Equal(UserPreferences.Default, await store.GetAsync());
+            await store.SaveAsync(new UserPreferences("  Ctrl+Shift+Space  ", true));
+            Assert.Equal(new UserPreferences("Ctrl+Shift+Space", true), await new JsonUserPreferencesStore(path).GetAsync());
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                foreach (var file in Directory.EnumerateFiles(directory)) File.Delete(file);
+                Directory.Delete(directory);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task UserPreferencesRejectEmptyShortcut()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"jarvis-prefs-test-{Guid.NewGuid():N}");
+        try
+        {
+            var store = new JsonUserPreferencesStore(Path.Combine(directory, "preferences.json"));
+            await Assert.ThrowsAsync<ArgumentException>(() => store.SaveAsync(new UserPreferences(" ", false)));
+            Assert.False(Directory.Exists(directory));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                foreach (var file in Directory.EnumerateFiles(directory)) File.Delete(file);
+                Directory.Delete(directory);
+            }
+        }
+    }
 }

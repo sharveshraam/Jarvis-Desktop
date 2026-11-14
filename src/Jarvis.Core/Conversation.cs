@@ -21,6 +21,22 @@ public interface IUserProfileStore
     Task SaveAsync(UserProfile profile, CancellationToken cancellationToken = default);
 }
 
+public sealed record UserPreferences(string GlobalShortcut, bool RunAtStartup)
+{
+    public static UserPreferences Default { get; } = new("Ctrl+Alt+J", false);
+}
+
+public interface IUserPreferencesStore
+{
+    Task<UserPreferences> GetAsync(CancellationToken cancellationToken = default);
+    Task SaveAsync(UserPreferences preferences, CancellationToken cancellationToken = default);
+}
+
+public interface IStartupRegistration
+{
+    void SetEnabled(bool enabled);
+}
+
 public sealed record ChatResponse(string Text, string Model, TimeSpan Elapsed);
 
 public interface IAiProvider
