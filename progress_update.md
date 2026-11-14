@@ -26,19 +26,19 @@ Last updated: 2026-11-14
 
 ## Verification completed
 
-- Latest verified test run: **68 passed, 0 failed**.
+- Latest verified test run: **70 passed, 0 failed**.
 - Latest verified full Release build: **0 warnings, 0 errors**.
 - GitHub Actions run [#18](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43601058115) for `64fd6b7` completed successfully, including Windows restore, Release build, tests, self-contained `win-x64` publish, ZIP packaging, and artifact upload.
-- Latest mode persistence code run `b4bb802` [completed successfully](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43603130140); the follow-up docs run `6b75e62` [also completed successfully](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43603158972).
+- Local file tools code run `760f4fe` [completed successfully](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43604364087); the follow-up docs run `73b6404` [also completed successfully](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43604397463).
 - Live Gemini request was not sent: the current Windows-user key store has no API key configured.
 - Live UI input could not be completed: JARVIS's window was present in the app inventory, but its captured screen was black and Windows rejected interaction while locked.
 - No final signed release installer has been produced. GitHub Actions has built and uploaded a self-contained development ZIP artifact; the full requested project is still in progress.
 
 ## Latest increment
 
-- Added explicit-consent Gemini tools for searching local filenames and reading supported text files in Desktop, Documents, and Downloads.
-- Contents are not read until approval. Approval shows path, size, and modification time; changed files require fresh confirmation, and changes during reading are detected before content is returned. Access is bounded to 1 MB text files and refuses unsupported extensions, paths outside allowed roots, and reparse points.
-- Verification: 68 tests pass and the full Release build has 0 warnings and 0 errors. README privacy guidance is updated; this increment is pushed.
+- Added an approval-gated workflow to open a unique supported local document with its default Windows application.
+- It is constrained to Desktop, Documents, and Downloads; asks before opening; and refuses ambiguous results, unsupported file types, links, or a file changed after confirmation.
+- Verification: 70 tests pass and the full Release build has 0 warnings and 0 errors. This increment is being prepared for push.
 
 ## Remaining work from the master build prompt
 
@@ -103,3 +103,10 @@ Append a dated entry here whenever a meaningful project increment is completed. 
 - Added tests for declined and approved searches, declined and approved reads, off-folder rejection, and change-after-approval detection. Verification: **68 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
 - GitHub Actions for mode persistence [passed](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43603130140) and its progress-log push [passed](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43603158972).
 - Pushed as `760f4fe feat: add consent-gated local text file tools` to `origin/feature/jarvis-desktop`.
+
+## 2026-11-14 increment — approval-gated document opening
+
+- Added local `open file containing …` and a Gemini `open_user_file` tool for uniquely matching PDF, Office, text, and common image documents; Windows opens them with their default associated application.
+- Requires confirmation showing the path, size, and modified time. Refuses ambiguous results, unsupported types (including executables), files outside Desktop/Documents/Downloads, reparse points, and files changed after confirmation.
+- Added tests for approved open, declined open, ambiguous matches, and unsupported executable rejection. Verification: **70 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
+- The preceding file-tools code and documentation runs [both succeeded](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43604364087). This increment is ready to push.

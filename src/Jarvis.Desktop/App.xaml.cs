@@ -50,6 +50,7 @@ public partial class App : Application
                 services.AddSingleton<ISystemInfoProvider, WindowsSystemInfo>();
                 services.AddSingleton<ILocalFileSearch, WindowsFileSearch>();
                 services.AddSingleton<SafeUserFiles>();
+                services.AddSingleton<ILocalFileOpener, WindowsLocalFileOpener>();
                 services.AddSingleton<IApplicationLauncher, WindowsApplicationLauncher>();
                 services.AddSingleton<LocalCommandRouter>();
                 services.AddSingleton<ProjectWorkspaceTools>();

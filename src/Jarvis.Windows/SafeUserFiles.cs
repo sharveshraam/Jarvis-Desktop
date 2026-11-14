@@ -10,6 +10,8 @@ public sealed class SafeUserFiles(IEnumerable<string>? roots = null)
     private const long MaxFileBytes = 1_000_000;
     private static readonly HashSet<string> TextExtensions = new(StringComparer.OrdinalIgnoreCase)
     { ".txt", ".md", ".csv", ".json", ".xml", ".cs", ".c", ".h", ".cpp", ".py", ".js", ".ts", ".html", ".css", ".sql", ".java" };
+    private static readonly HashSet<string> OpenableExtensions = new(StringComparer.OrdinalIgnoreCase)
+    { ".txt", ".md", ".csv", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".rtf", ".odt", ".ods", ".odp", ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp" };
 
     private readonly string[] _roots = (roots ?? GetDefaultRoots())
         .Where(Directory.Exists)
@@ -18,14 +20,22 @@ public sealed class SafeUserFiles(IEnumerable<string>? roots = null)
         .ToArray();
 
     public UserFileSummary Inspect(string fullPath)
+        => InspectWithinUserFolders(fullPath, TextExtensions, MaxFileBytes);
+
+    public UserFileSummary InspectForOpening(string fullPath)
+        => InspectWithinUserFolders(fullPath, OpenableExtensions, null);
+
+    private UserFileSummary InspectWithinUserFolders(string fullPath, HashSet<string> allowedExtensions, long? maxFileBytes)
     {
         if (string.IsNullOrWhiteSpace(fullPath) || !Path.IsPathFullyQualified(fullPath))
             throw new ArgumentException("Use the full path returned by JARVIS file search.", nameof(fullPath));
         var path = Path.GetFullPath(fullPath);
         var root = _roots.FirstOrDefault(candidate => path.StartsWith(candidate, StringComparison.OrdinalIgnoreCase));
         if (root is null) throw new ArgumentException("JARVIS can read files only from Desktop, Documents, or Downloads.", nameof(fullPath));
-        if (!TextExtensions.Contains(Path.GetExtension(path)))
-            throw new ArgumentException("JARVIS can send only supported text files (.txt, .md, .csv, .json, .xml, or source-code text files).", nameof(fullPath));
+        if (!allowedExtensions.Contains(Path.GetExtension(path)))
+            throw new ArgumentException(allowedExtensions == OpenableExtensions
+                ? "This file type is not supported for opening by JARVIS."
+                : "JARVIS can send only supported text files (.txt, .md, .csv, .json, .xml, or source-code text files).", nameof(fullPath));
 
         var relative = Path.GetRelativePath(root, path);
         var current = new DirectoryInfo(root);
@@ -41,7 +51,8 @@ public sealed class SafeUserFiles(IEnumerable<string>? roots = null)
         if (!info.Exists) throw new FileNotFoundException("That file was not found.", path);
         if ((info.Attributes & FileAttributes.ReparsePoint) != 0)
             throw new ArgumentException("JARVIS cannot read linked or reparse-point files.", nameof(fullPath));
-        if (info.Length > MaxFileBytes) throw new InvalidOperationException("The selected file exceeds the 1 MB text-file limit.");
+        if (maxFileBytes is not null && info.Length > maxFileBytes.Value)
+            throw new InvalidOperationException("The selected file exceeds the 1 MB text-file limit.");
         return new UserFileSummary(path, info.Length, info.LastWriteTimeUtc);
     }
 

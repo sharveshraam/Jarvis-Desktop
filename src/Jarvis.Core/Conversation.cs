@@ -118,6 +118,11 @@ public interface IApplicationLauncher
     void Start(string applicationCommand);
 }
 
+public interface ILocalFileOpener
+{
+    void Open(string fullPath);
+}
+
 public sealed record JarvisReminder(string Id, string Title, DateTimeOffset DueAt, bool Notified);
 
 public sealed record JarvisMemory(string Id, string Content, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);

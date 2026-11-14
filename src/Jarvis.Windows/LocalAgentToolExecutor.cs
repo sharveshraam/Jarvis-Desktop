@@ -39,6 +39,7 @@ public sealed class LocalAgentToolExecutor(LocalCommandRouter router, IActionApp
                 "read_desktop_text_file" => await ReadDesktopFileForCloudAsync(RequiredString(call.Arguments, "name"), cancellationToken),
                 "search_user_files" => await SearchUserFilesForCloudAsync(RequiredString(call.Arguments, "query"), cancellationToken),
                 "read_user_file" => await ReadUserFileForCloudAsync(RequiredString(call.Arguments, "path"), cancellationToken),
+                "open_user_file" => await router.TryRunAsync($"open file containing {RequiredString(call.Arguments, "query")}", cancellationToken),
                 "create_reminder" => await CreateReminderAsync(call.Arguments, cancellationToken),
                 "list_reminders" => await router.TryRunAsync("show reminders", cancellationToken),
                 _ => new LocalCommandResult(false, $"The tool '{call.Name}' is not available.")

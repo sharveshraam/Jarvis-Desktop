@@ -37,6 +37,8 @@ Use `show JARVIS diagnostics` to view recent local-command, Gemini, speech recog
 
 Try `find files containing physics` to search filenames in Desktop, Documents, and Downloads. JARVIS skips linked folders, limits traversal and result counts, and returns paths so you can choose a file. When Gemini requests a local filename search or text-file read, JARVIS previews the names or file details and asks before sharing them. Supported text files are limited to 1 MB and to those three user folders; binary files and linked paths are excluded.
 
+Ask JARVIS to `open file containing lab report` to open a unique supported document with its default Windows app. It asks before opening, refuses ambiguous matches and unsupported file types, and limits the action to Desktop, Documents, and Downloads.
+
 Choose Personal, Study, Development, Research, Focus, System, or Creator mode from the mode selector. Each mode has distinct response guidance, and JARVIS remembers your selection in local preferences.
 
 ## Privacy

@@ -201,6 +201,76 @@ public sealed class LocalCommandRouterTests
     }
 
     [Fact]
+    public async Task OpensUniqueSupportedLocalDocumentOnlyAfterApproval()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"jarvis-open-file-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "lab-report.pdf");
+        try
+        {
+            await File.WriteAllTextAsync(file, "synthetic pdf placeholder");
+            var approval = new FakeApproval(true);
+            var opener = new FakeLocalFileOpener();
+            var router = new LocalCommandRouter(approval: approval, fileSearch: new WindowsFileSearch([root]),
+                userFiles: new SafeUserFiles([root]), localFileOpener: opener);
+
+            var result = await router.TryRunAsync("open file containing lab-report");
+
+            Assert.True(result.Succeeded);
+            Assert.Equal(file, opener.OpenedPath);
+            Assert.Contains("Windows will open this file", approval.Details);
+            Assert.Contains(file, approval.Details);
+        }
+        finally
+        {
+            if (File.Exists(file)) File.Delete(file);
+            Directory.Delete(root);
+        }
+    }
+
+    [Fact]
+    public async Task DeclinedAmbiguousOrUnsupportedFileOpenDoesNotLaunchAnything()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"jarvis-open-file-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var first = Path.Combine(root, "lecture-one.pdf");
+        var second = Path.Combine(root, "lecture-two.pdf");
+        var executable = Path.Combine(root, "lecture-tool.exe");
+        try
+        {
+            await File.WriteAllTextAsync(first, "one");
+            await File.WriteAllTextAsync(second, "two");
+            await File.WriteAllTextAsync(executable, "not a real executable");
+            var approval = new FakeApproval(false);
+            var opener = new FakeLocalFileOpener();
+            var router = new LocalCommandRouter(approval: approval, fileSearch: new WindowsFileSearch([root]),
+                userFiles: new SafeUserFiles([root]), localFileOpener: opener);
+
+            var ambiguous = await router.TryRunAsync("open file containing lecture");
+            Assert.False(ambiguous.Succeeded);
+            Assert.Contains("Refine the search", ambiguous.Response);
+            Assert.False(approval.Called);
+            Assert.Null(opener.OpenedPath);
+
+            var declined = await router.TryRunAsync("open file named lecture-one");
+            Assert.False(declined.Succeeded);
+            Assert.Contains("Canceled", declined.Response);
+            Assert.True(approval.Called);
+            Assert.Null(opener.OpenedPath);
+
+            var unsupported = await router.TryRunAsync("open file named lecture-tool");
+            Assert.False(unsupported.Succeeded);
+            Assert.Contains("supported document", unsupported.Response, StringComparison.OrdinalIgnoreCase);
+            Assert.Null(opener.OpenedPath);
+        }
+        finally
+        {
+            foreach (var file in new[] { first, second, executable }) if (File.Exists(file)) File.Delete(file);
+            Directory.Delete(root);
+        }
+    }
+
+    [Fact]
     public async Task CreatesTextFileOnlyAfterApprovalAndReadsItLocally()
     {
         var root = Path.Combine(Path.GetTempPath(), $"jarvis-file-test-{Guid.NewGuid():N}");
@@ -273,6 +343,12 @@ public sealed class LocalCommandRouterTests
     {
         public string? LastCommand { get; private set; }
         public void Start(string applicationCommand) => LastCommand = applicationCommand;
+    }
+
+    private sealed class FakeLocalFileOpener : ILocalFileOpener
+    {
+        public string? OpenedPath { get; private set; }
+        public void Open(string fullPath) => OpenedPath = fullPath;
     }
 
     private sealed class FakeProjectTaskCoordinator : IProjectTaskCoordinator

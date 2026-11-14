@@ -18,8 +18,10 @@ public sealed partial class LocalCommandRouter
     private readonly IMemoryStore? _memory;
     private readonly IProjectTaskCoordinator? _projectTasks;
     private readonly IPerformanceTelemetry? _performance;
+    private readonly SafeUserFiles? _userFiles;
+    private readonly ILocalFileOpener? _localFileOpener;
 
-    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null, ISystemInfoProvider? systemInfo = null, ILocalFileSearch? fileSearch = null, IApplicationLauncher? applicationLauncher = null, IReminderStore? reminders = null, IMemoryStore? memory = null, IProjectTaskCoordinator? projectTasks = null, IPerformanceTelemetry? performance = null)
+    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null, ISystemInfoProvider? systemInfo = null, ILocalFileSearch? fileSearch = null, IApplicationLauncher? applicationLauncher = null, IReminderStore? reminders = null, IMemoryStore? memory = null, IProjectTaskCoordinator? projectTasks = null, IPerformanceTelemetry? performance = null, SafeUserFiles? userFiles = null, ILocalFileOpener? localFileOpener = null)
     {
         _approval = approval;
         _files = files;
@@ -30,6 +32,8 @@ public sealed partial class LocalCommandRouter
         _memory = memory;
         _projectTasks = projectTasks;
         _performance = performance;
+        _userFiles = userFiles;
+        _localFileOpener = localFileOpener;
     }
 
     private static readonly IReadOnlyDictionary<string, string> Applications = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -190,6 +194,8 @@ public sealed partial class LocalCommandRouter
             catch (Exception ex) when (ex is InvalidOperationException or NetworkInformationException)
             { return new(true, $"Could not read system status: {ex.Message}", false); }
         }
+        var openFile = OpenFilePattern().Match(normalized);
+        if (openFile.Success) return await OpenUserFileAsync(openFile.Groups[1].Value.Trim().Trim('"', '\''), cancellationToken);
         var findFiles = FindFilesPattern().Match(normalized);
         if (findFiles.Success)
         {
@@ -263,6 +269,42 @@ public sealed partial class LocalCommandRouter
         if (_projectTasks is null) return new(true, "Background project tasks are unavailable.", false);
         var task = await _projectTasks.QueueAsync(kind, cancellationToken);
         return new(true, $"Queued {kind} as task {task.Id}. I’ll run it in the background; use ‘show project tasks’ to check progress.");
+    }
+
+    private async Task<LocalCommandResult> OpenUserFileAsync(string query, CancellationToken cancellationToken)
+    {
+        if (_fileSearch is null || _userFiles is null || _localFileOpener is null || _approval is null)
+            return new(true, "Opening user files is unavailable in this session.", false);
+        LocalFileSearchResults search;
+        try { search = await _fileSearch.FindFilesByNameAsync(query, 10, cancellationToken); }
+        catch (ArgumentException ex) { return new(true, ex.Message, false); }
+        var matches = new List<UserFileSummary>();
+        foreach (var match in search.Matches)
+        {
+            try { matches.Add(_userFiles.InspectForOpening(match.FullPath)); }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException or IOException) { }
+        }
+        if (matches.Count == 0)
+            return new(true, search.SearchLimitReached
+                ? "No supported document was found before the local search limit was reached."
+                : $"I couldn't find a supported document containing ‘{query}’ in Desktop, Documents, or Downloads.", false);
+        if (matches.Count > 1 || search.SearchLimitReached)
+            return new(true, "More than one matching document may exist. Refine the search with ‘find files containing …’ and use a unique filename.", false);
+
+        var file = matches[0];
+        var approved = await _approval.ConfirmAsync("Open this local file?",
+            $"Windows will open this file with its default application.\nPath: {file.FullPath}\nSize: {file.Length:N0} bytes\nLast modified: {file.LastModifiedUtc.ToLocalTime():g}", cancellationToken);
+        if (!approved) return new(true, "Canceled. The file was not opened.", false);
+        try
+        {
+            var current = _userFiles.InspectForOpening(file.FullPath);
+            if (current.Length != file.Length || current.LastModifiedUtc != file.LastModifiedUtc)
+                return new(true, "The file changed after confirmation. Review it again before opening.", false);
+            _localFileOpener.Open(file.FullPath);
+            return new(true, $"Opened {Path.GetFileName(file.FullPath)} with its default Windows application.");
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException or IOException or System.ComponentModel.Win32Exception)
+        { return new(true, $"Windows could not open the file: {ex.Message}", false); }
     }
 
     private async Task<LocalCommandResult> GetDiagnosticsAsync(CancellationToken cancellationToken)
@@ -370,6 +412,9 @@ public sealed partial class LocalCommandRouter
 
     [GeneratedRegex("^(?:find|search)\\s+(?:for\\s+)?(?:my\\s+)?files?\\s+(?:named|called|containing|matching|for)\\s+(.+?)\\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex FindFilesPattern();
+
+    [GeneratedRegex("^(?:open|show)\\s+(?:the\\s+)?file\\s+(?:named|called|containing)\\s+(.+?)\\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex OpenFilePattern();
 
     [GeneratedRegex("^(?:cancel|remove)\\s+(?:the\\s+)?reminder\\s+(.+?)\\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CancelReminderPattern();
