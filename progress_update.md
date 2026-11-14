@@ -7,7 +7,7 @@ Last updated: 2026-11-14
 - Public repository: `sharveshraam/Jarvis-Desktop`
 - Working branch: `feature/jarvis-desktop`
 - Lumi and the original repositories remain separate and untouched.
-- Latest feature commit: `b4bb802 feat: persist selected working mode`.
+- Latest feature commit: `760f4fe feat: add consent-gated local text file tools`.
 - Progress log is maintained alongside each implementation increment on this branch.
 - Previous milestone: `d6fa3e3 feat: add persistent background project tasks`.
 
@@ -38,7 +38,7 @@ Last updated: 2026-11-14
 
 - Added explicit-consent Gemini tools for searching local filenames and reading supported text files in Desktop, Documents, and Downloads.
 - Contents are not read until approval. Approval shows path, size, and modification time; changed files require fresh confirmation, and changes during reading are detected before content is returned. Access is bounded to 1 MB text files and refuses unsupported extensions, paths outside allowed roots, and reparse points.
-- Verification: 68 tests pass and the full Release build has 0 warnings and 0 errors. README privacy guidance is updated; this increment is being prepared for push.
+- Verification: 68 tests pass and the full Release build has 0 warnings and 0 errors. README privacy guidance is updated; this increment is pushed.
 
 ## Remaining work from the master build prompt
 
@@ -101,4 +101,5 @@ Append a dated entry here whenever a meaningful project increment is completed. 
 - Added Gemini tools to search user filenames and read supported local text files from Desktop, Documents, or Downloads.
 - Requires a preview and explicit approval before sending names/paths, and separate approval before sending contents. Enforces folder boundaries, extension allowlists, a 1 MB size cap, reparse-point exclusion, strict UTF-8, and file-change detection before and after the read.
 - Added tests for declined and approved searches, declined and approved reads, off-folder rejection, and change-after-approval detection. Verification: **68 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
-- GitHub Actions for mode persistence [passed](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43603130140) and its progress-log push [passed](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43603158972). This increment is ready to push.
+- GitHub Actions for mode persistence [passed](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43603130140) and its progress-log push [passed](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43603158972).
+- Pushed as `760f4fe feat: add consent-gated local text file tools` to `origin/feature/jarvis-desktop`.
