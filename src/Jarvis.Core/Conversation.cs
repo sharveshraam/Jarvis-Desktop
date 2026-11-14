@@ -43,3 +43,11 @@ public interface ISystemInfoProvider
 {
     MemoryStatus GetMemoryStatus();
 }
+
+public sealed record LocalFileMatch(string FullPath, DateTime LastModified);
+public sealed record LocalFileSearchResult(LocalFileMatch? Match, bool SearchLimitReached);
+
+public interface ILocalFileSearch
+{
+    Task<LocalFileSearchResult> FindLatestPdfAsync(CancellationToken cancellationToken = default);
+}

@@ -12,12 +12,14 @@ public sealed partial class LocalCommandRouter
     private readonly IActionApproval? _approval;
     private readonly DesktopFileSystem? _files;
     private readonly ISystemInfoProvider? _systemInfo;
+    private readonly ILocalFileSearch? _fileSearch;
 
-    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null, ISystemInfoProvider? systemInfo = null)
+    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null, ISystemInfoProvider? systemInfo = null, ILocalFileSearch? fileSearch = null)
     {
         _approval = approval;
         _files = files;
         _systemInfo = systemInfo;
+        _fileSearch = fileSearch;
     }
 
     private static readonly IReadOnlyDictionary<string, string> Applications = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -62,6 +64,23 @@ public sealed partial class LocalCommandRouter
                 return new(true, $"Memory in use: {usedGiB:0.0} GB of {totalGiB:0.0} GB ({percent:0}%).");
             }
             catch (InvalidOperationException ex) { return new(true, ex.Message); }
+        }
+        if (Regex.IsMatch(normalized, @"^(?:find|show)\s+(?:my\s+)?(?:latest|most recent)\s+pdf(?:\s+file)?\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            if (_fileSearch is null) return new(true, "Local file search is unavailable.");
+            try
+            {
+                var search = await _fileSearch.FindLatestPdfAsync(cancellationToken);
+                if (search.Match is null)
+                    return new(true, search.SearchLimitReached
+                        ? "No PDF was found before the local search limit was reached."
+                        : "I couldn't find a PDF in Desktop, Documents, or Downloads.");
+                var suffix = search.SearchLimitReached ? " Search limit reached; there may be a newer PDF." : string.Empty;
+                return new(true, $"Your latest PDF is {Path.GetFileName(search.Match.FullPath)}\n{search.Match.FullPath}\nModified {search.Match.LastModified:g}.{suffix}");
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+            { return new(true, $"Local file search failed: {ex.Message}"); }
         }
         if (Regex.IsMatch(normalized, @"^(what(?:'s| is) the )?time\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
             return new(true, $"It is {now.ToString("h:mm tt", CultureInfo.CurrentCulture)}.");

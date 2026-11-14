@@ -28,6 +28,7 @@ public partial class App : Application
                 services.AddSingleton<IActionApproval, MessageBoxActionApproval>();
                 services.AddSingleton<DesktopFileSystem>();
                 services.AddSingleton<ISystemInfoProvider, WindowsSystemInfo>();
+                services.AddSingleton<ILocalFileSearch, WindowsFileSearch>();
                 services.AddSingleton<LocalCommandRouter>();
                 services.AddSingleton<ChatViewModel>();
                 services.AddSingleton<MainWindow>();

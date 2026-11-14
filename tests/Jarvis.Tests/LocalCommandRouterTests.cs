@@ -96,6 +96,34 @@ public sealed class LocalCommandRouterTests
         Assert.Equal("Memory in use: 10.0 GB of 16.0 GB (63%).", result.Response);
     }
 
+    [Fact]
+    public async Task FindsNewestPdfOnLocalFoldersWithoutAi()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"jarvis-search-test-{Guid.NewGuid():N}");
+        var nested = Directory.CreateDirectory(Path.Combine(root, "class notes")).FullName;
+        try
+        {
+            var older = Path.Combine(root, "old.pdf");
+            var newer = Path.Combine(nested, "latest.pdf");
+            await File.WriteAllTextAsync(older, "older");
+            await File.WriteAllTextAsync(newer, "newer");
+            await File.WriteAllTextAsync(Path.Combine(root, "ignore.txt"), "not a pdf");
+            File.SetLastWriteTime(older, DateTime.Now.AddDays(-2));
+            File.SetLastWriteTime(newer, DateTime.Now);
+
+            var router = new LocalCommandRouter(fileSearch: new WindowsFileSearch([root]));
+            var result = await router.TryRunAsync("find my latest PDF");
+            Assert.True(result.Handled);
+            Assert.Contains(newer, result.Response);
+        }
+        finally
+        {
+            foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)) File.Delete(file);
+            Directory.Delete(nested);
+            Directory.Delete(root);
+        }
+    }
+
     private sealed class FakeApproval(bool approved) : IActionApproval
     {
         public bool Called { get; private set; }

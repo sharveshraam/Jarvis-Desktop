@@ -19,6 +19,7 @@
 | Safe local command fast path | Time/date, arithmetic, and an allowlisted app launcher; tested |
 | Permission prompts for file changes | Desktop folder creation asks before writing; path is restricted to one folder directly on Desktop; overwrite and traversal blocked; tested |
 | System information | RAM usage read directly from Windows; local routing covered by a deterministic test |
+| File discovery | Bounded local recursive PDF search across Desktop, Documents, and Downloads; skips junctions and reports when the search cap is reached |
 | Tray, startup, global shortcut | Planned |
 | Speech recognition and TTS | Not implemented; no benchmark claimed |
 | Reminders, memory, background tasks | Planned |
@@ -28,7 +29,7 @@
 ## Verification completed
 
 - .NET 10.0.404 Release solution build: 0 warnings, 0 errors.
-- Automated tests: 11 passed, 0 failed (fast-path routing, approved/canceled/rejected Desktop folder creation, local RAM reporting, SQLite history, DPAPI secret round-trip).
+- Automated tests: 12 passed, 0 failed (fast-path routing, approved/canceled/rejected Desktop folder creation, local RAM reporting, newest-PDF search, SQLite history, DPAPI secret round-trip).
 - Published and opened a self-contained `win-x64` single-file build.
 - Live UI smoke check: `calculate 17 * 23` returned `391` with the `Completed locally` status.
 - Gemini network streaming was not tested against a real account because no API key was configured.
