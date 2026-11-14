@@ -14,8 +14,9 @@
 |---|---|
 | WPF app shell and chat | Working foundation; modes and cancel are wired |
 | System tray | Implemented: close hides the window, tray double-click/menu reopens, explicit Quit exits |
-| Startup and global shortcut | Settings include optional Windows sign-in launch and configurable global key chord; runtime smoke found Ctrl+Alt+J occupied, so default changed to Ctrl+Shift+F12 for verification |
-| Gemini provider and protected key | Streaming provider implemented; no live API test because no key was configured |
+| Startup and global shortcut | Settings include optional Windows sign-in launch and configurable global key chord; Ctrl+Alt+J was occupied during smoke check, default changed to Ctrl+Shift+F12; new default registration still needs live verification |
+| Gemini provider and protected key | Streaming provider, function declarations, structured tool-call parsing, and protected key implemented; live API not tested because no key was configured |
+| Agent execution | Bounded to three model/tool rounds and six local calls per request; allowlisted tools validate arguments; file writes require approval and Gemini-requested file reads require explicit sharing approval |
 | Editable profile | Local JSON profile with user-editable name and context; included in Gemini system instruction; Settings discloses cloud transfer |
 | Reminders | Relative minute/hour/day reminders persisted in SQLite, list command, and tray balloon notification polling; due records are marked delivered |
 | Local conversation persistence | SQLite history tested |
@@ -25,20 +26,19 @@
 | Desktop text files | Approval-gated new .txt/.md creation; no overwrite; bounded text read for selected formats; traversal blocked; tests cover approve, decline, and read |
 | System information | RAM usage read directly from Windows; local routing covered by a deterministic test |
 | File discovery | Bounded local recursive PDF search across Desktop, Documents, and Downloads; skips junctions and reports when the search cap is reached |
-| Startup and global shortcut | Planned |
 | Speech recognition and TTS | Local System.Speech dictation button with review-before-send; optional read-aloud preference off by default; live microphone and voice checks pending |
-| Reminders, memory, background tasks | Planned |
+| Long-term memory and background tasks | Planned |
 | Windows build workflow | Added; portable ZIP artifact |
 | Installer | Not implemented yet |
 
 ## Verification completed
 
 - .NET 10.0.404 Release solution build: 0 warnings, 0 errors.
-- Automated tests: 25 passed, 0 failed (fast-path routing, allowlisted development-app launch, approved/canceled/rejected Desktop file actions, local RAM reporting, newest-PDF search, SQLite conversation and reminder persistence/delivery, DPAPI secret round-trip, user profile and preference persistence/validation, Gemini SSE/profile/key placement).
-- Published and opened a self-contained `win-x64` single-file build.
+- Automated tests: 30 passed, 0 failed (fast-path routing, allowlisted development-app launch, approved/canceled/rejected Desktop file actions, RAM reporting, newest-PDF search, SQLite conversation and reminder persistence/delivery, DPAPI secret round-trip, user profile/preferences, Gemini SSE and tool-call exchange, agent argument checks and file-sharing consent).
+- An earlier development milestone was published and opened as a self-contained `win-x64` single-file build; latest structured-tool and speech changes still need a fresh runtime smoke check.
 - Live UI smoke check: `calculate 17 * 23` returned `391` with the `Completed locally` status.
 - Gemini network streaming was not tested against a real account because no API key was configured.
 
 ## Release notes
 
-The current build is an early development milestone, not a complete release. File support currently covers Desktop folder creation, creating new .txt/.md files with approval, reading bounded text files, and locating the latest PDF across standard user folders. Reminders currently support relative minute/hour/day times and a tray notification. Voice APIs are wired, but microphone/device behavior and speech latency have not been verified on this locked desktop. It still needs broader file tools, persistent memory, richer workflows, broader failure tests, and an installer before release claims are appropriate.
+The current build is an early development milestone, not a complete release. File support currently covers Desktop folder creation, creating new .txt/.md files with approval, reading bounded text files, and locating the latest PDF across standard user folders. Gemini tools can request these actions within a bounded call loop; reads requested by Gemini disclose and confirm transfer to Google before content is returned. Reminders currently support relative minute/hour/day times and tray notification. Voice APIs are wired, but microphone/device behavior, speech latency, and the new tool loop against a live Gemini account have not been verified. It still needs broader file and app workflows, persistent memory, background tasks, fuller performance evaluation, and an installer before release claims are appropriate.

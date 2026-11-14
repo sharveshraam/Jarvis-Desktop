@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Jarvis.Core;
 
 public enum ChatRole { User, Assistant }
@@ -6,7 +8,17 @@ public sealed record ChatMessage(string Id, ChatRole Role, string Content, DateT
 
 public enum JarvisMode { Personal, Study, Development, Research, Focus, System, Creator }
 
-public sealed record ChatRequest(IReadOnlyList<ChatMessage> History, string UserText, JarvisMode Mode, UserProfile? UserProfile = null);
+public sealed record ChatRequest(
+    IReadOnlyList<ChatMessage> History,
+    string UserText,
+    JarvisMode Mode,
+    UserProfile? UserProfile = null,
+    IReadOnlyList<AiToolRound>? ToolHistory = null);
+
+public sealed record AiStreamEvent(string? Text = null, AiFunctionCall? FunctionCall = null);
+public sealed record AiFunctionCall(string Name, JsonElement Arguments, JsonElement ModelContent, string? Id = null);
+public sealed record AiToolResult(string Name, JsonElement Response, string? Id = null);
+public sealed record AiToolRound(JsonElement ModelContent, IReadOnlyList<AiToolResult> Results);
 
 public sealed record UserProfile(string DisplayName, string PersonalContext)
 {
@@ -51,7 +63,12 @@ public sealed record ChatResponse(string Text, string Model, TimeSpan Elapsed);
 
 public interface IAiProvider
 {
-    IAsyncEnumerable<string> StreamAsync(ChatRequest request, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<AiStreamEvent> StreamAsync(ChatRequest request, CancellationToken cancellationToken = default);
+}
+
+public interface IAgentToolExecutor
+{
+    Task<JsonElement> ExecuteAsync(AiFunctionCall call, CancellationToken cancellationToken = default);
 }
 
 public interface IConversationStore

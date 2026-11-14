@@ -1,0 +1,75 @@
+using System.Text.Json;
+using Jarvis.Core;
+
+namespace Jarvis.Windows;
+
+public sealed class LocalAgentToolExecutor(LocalCommandRouter router, IActionApproval? approval = null, DesktopFileSystem? files = null) : IAgentToolExecutor
+{
+    public async Task<JsonElement> ExecuteAsync(AiFunctionCall call, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (call.Arguments.ValueKind != JsonValueKind.Object)
+                return Result(false, "Tool arguments must be a JSON object.");
+
+            var result = call.Name switch
+            {
+                "get_current_time" => await router.TryRunAsync("what time is it?", cancellationToken),
+                "get_current_date" => await router.TryRunAsync("what is the date?", cancellationToken),
+                "get_system_memory" => await router.TryRunAsync("show RAM usage", cancellationToken),
+                "find_latest_pdf" => await router.TryRunAsync("find my latest PDF", cancellationToken),
+                "open_application" => await router.TryRunAsync($"open {RequiredString(call.Arguments, "application")}", cancellationToken),
+                "create_desktop_folder" => await router.CreateDesktopFolderAsync(RequiredString(call.Arguments, "name"), cancellationToken),
+                "create_desktop_text_file" => await router.CreateDesktopTextFileAsync(
+                    RequiredString(call.Arguments, "name"), RequiredString(call.Arguments, "content"), cancellationToken),
+                "read_desktop_text_file" => await ReadDesktopFileForCloudAsync(RequiredString(call.Arguments, "name"), cancellationToken),
+                "create_reminder" => await CreateReminderAsync(call.Arguments, cancellationToken),
+                "list_reminders" => await router.TryRunAsync("show reminders", cancellationToken),
+                _ => new LocalCommandResult(false, $"The tool '{call.Name}' is not available.")
+            };
+            return Result(result.Handled && result.Succeeded, result.Response ?? "The local tool returned no result.");
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or JsonException)
+        {
+            return Result(false, ex.Message);
+        }
+    }
+
+    private async Task<LocalCommandResult> ReadDesktopFileForCloudAsync(string name, CancellationToken cancellationToken)
+    {
+        if (approval is null || files is null)
+            return new(true, "File sharing with Gemini is unavailable in this session.", false);
+        string target;
+        try { target = files.GetDesktopFilePath(name); }
+        catch (ArgumentException ex) { return new(true, ex.Message, false); }
+        var approved = await approval.ConfirmAsync(
+            "Send file contents to Gemini?",
+            $"The contents of this file will be sent to Google Gemini to answer your request:\n{target}",
+            cancellationToken);
+        if (!approved) return new(true, "Canceled. The file was not read or shared.", false);
+        return await router.ReadDesktopTextFileAsync(name, cancellationToken);
+    }
+
+    private async Task<LocalCommandResult> CreateReminderAsync(JsonElement arguments, CancellationToken cancellationToken)
+    {
+        if (!arguments.TryGetProperty("amount", out var amountValue) || !amountValue.TryGetInt32(out var amount) || amount <= 0)
+            return new(true, "Reminder amount must be a positive integer.");
+        var unit = RequiredString(arguments, "unit").ToLowerInvariant();
+        if (unit is not ("minutes" or "hours" or "days")) return new(true, "Reminder unit must be minutes, hours, or days.");
+        var title = RequiredString(arguments, "title");
+        if (title.Length > 160 || title.Contains('\n') || title.Contains('\r')) return new(true, "Reminder text must be one line and at most 160 characters.");
+        return await router.TryRunAsync($"remind me in {amount} {unit} to {title}", cancellationToken);
+    }
+
+    private static string RequiredString(JsonElement arguments, string name)
+    {
+        if (!arguments.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String)
+            throw new ArgumentException($"The '{name}' argument must be a string.");
+        var text = value.GetString()?.Trim();
+        if (string.IsNullOrWhiteSpace(text)) throw new ArgumentException($"The '{name}' argument cannot be empty.");
+        return text;
+    }
+
+    private static JsonElement Result(bool success, string message) => JsonSerializer.SerializeToElement(new { success, result = message });
+}

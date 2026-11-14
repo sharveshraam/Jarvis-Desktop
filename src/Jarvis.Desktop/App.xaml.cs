@@ -42,6 +42,10 @@ public partial class App : Application
                 services.AddSingleton<ILocalFileSearch, WindowsFileSearch>();
                 services.AddSingleton<IApplicationLauncher, WindowsApplicationLauncher>();
                 services.AddSingleton<LocalCommandRouter>();
+                services.AddSingleton<IAgentToolExecutor>(sp => new LocalAgentToolExecutor(
+                    sp.GetRequiredService<LocalCommandRouter>(),
+                    sp.GetRequiredService<IActionApproval>(),
+                    sp.GetRequiredService<DesktopFileSystem>()));
                 services.AddSingleton<ChatViewModel>();
                 services.AddSingleton<MainWindow>();
             })

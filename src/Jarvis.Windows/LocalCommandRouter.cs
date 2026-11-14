@@ -4,7 +4,7 @@ using Jarvis.Core;
 
 namespace Jarvis.Windows;
 
-public sealed record LocalCommandResult(bool Handled, string? Response = null);
+public sealed record LocalCommandResult(bool Handled, string? Response = null, bool Succeeded = true);
 
 public sealed partial class LocalCommandRouter
 {
@@ -46,9 +46,9 @@ public sealed partial class LocalCommandRouter
         var setReminder = ReminderPattern().Match(normalized);
         if (setReminder.Success)
         {
-            if (_reminders is null) return new(true, "Reminders are unavailable in this session.");
+            if (_reminders is null) return new(true, "Reminders are unavailable in this session.", false);
             if (!int.TryParse(setReminder.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var amount) || amount <= 0)
-                return new(true, "Choose a reminder time greater than zero.");
+                return new(true, "Choose a reminder time greater than zero.", false);
             var duration = setReminder.Groups[2].Value.ToLowerInvariant() switch
             {
                 "minute" or "minutes" => TimeSpan.FromMinutes(amount),
@@ -57,88 +57,45 @@ public sealed partial class LocalCommandRouter
                 _ => TimeSpan.Zero
             };
             if (duration <= TimeSpan.Zero || duration > TimeSpan.FromDays(365))
-                return new(true, "Choose a reminder within the next year.");
+                return new(true, "Choose a reminder within the next year.", false);
             var title = setReminder.Groups[3].Value.Trim().TrimEnd('.', '!');
-            if (title.Length is 0 or > 160) return new(true, "Reminder text must be between 1 and 160 characters.");
+            if (title.Length is 0 or > 160) return new(true, "Reminder text must be between 1 and 160 characters.", false);
             var reminder = new JarvisReminder(Guid.NewGuid().ToString("N"), title, DateTimeOffset.UtcNow.Add(duration), false);
             await _reminders.AddAsync(reminder, cancellationToken);
             return new(true, $"Reminder set for {reminder.DueAt.ToLocalTime():g}: {title}");
         }
         if (Regex.IsMatch(normalized, @"^(?:show|list)\s+(?:my\s+)?reminders\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
         {
-            if (_reminders is null) return new(true, "Reminders are unavailable in this session.");
+            if (_reminders is null) return new(true, "Reminders are unavailable in this session.", false);
             var upcoming = await _reminders.GetUpcomingAsync(cancellationToken: cancellationToken);
             return new(true, upcoming.Count == 0
                 ? "You have no upcoming reminders."
                 : string.Join(Environment.NewLine, upcoming.Select(item => $"{item.DueAt.ToLocalTime():g} — {item.Title}")));
         }
         var folder = CreateFolderPattern().Match(normalized);
-        if (folder.Success)
-        {
-            var name = folder.Groups[1].Value.Trim().Trim('"', '\'');
-            if (_approval is null || _files is null)
-                return new(true, "Desktop folder creation is unavailable in this session.");
-            string target;
-            try { target = _files.GetDesktopFolderPath(name); }
-            catch (ArgumentException ex) { return new(true, ex.Message); }
-            var approved = await _approval.ConfirmAsync("Create a Desktop folder?", target, cancellationToken);
-            if (!approved) return new(true, "Canceled. No folder was created.");
-            try { return new(true, await _files.CreateDesktopFolderAsync(name, cancellationToken)); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
-            { return new(true, $"Could not create the folder: {ex.Message}"); }
-        }
+        if (folder.Success) return await CreateDesktopFolderAsync(folder.Groups[1].Value.Trim().Trim('"', '\''), cancellationToken);
         var createText = CreateTextFilePattern().Match(normalized);
-        if (createText.Success)
-        {
-            var name = createText.Groups[1].Value.Trim().Trim('"', '\'');
-            var content = createText.Groups[2].Value;
-            if (_approval is null || _files is null) return new(true, "Desktop file creation is unavailable in this session.");
-            string target;
-            try
-            {
-                target = _files.GetDesktopFilePath(name);
-                if (!Path.GetExtension(target).Equals(".txt", StringComparison.OrdinalIgnoreCase) &&
-                    !Path.GetExtension(target).Equals(".md", StringComparison.OrdinalIgnoreCase))
-                    return new(true, "For now, JARVIS can create only .txt or .md files on the Desktop.");
-            }
-            catch (ArgumentException ex) { return new(true, ex.Message); }
-            var preview = content.Length > 500 ? content[..500] + "… (preview truncated)" : content;
-            var approved = await _approval.ConfirmAsync("Create a text file?", $"Path: {target}\nCharacters: {content.Length}\n\nContent preview:\n{preview}", cancellationToken);
-            if (!approved) return new(true, "Canceled. No file was created.");
-            try { return new(true, await _files.CreateDesktopTextFileAsync(name, content, cancellationToken)); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
-            { return new(true, $"Could not create the file: {ex.Message}"); }
-        }
+        if (createText.Success) return await CreateDesktopTextFileAsync(
+            createText.Groups[1].Value.Trim().Trim('"', '\''), createText.Groups[2].Value, cancellationToken);
         var readText = ReadTextFilePattern().Match(normalized);
-        if (readText.Success)
-        {
-            if (_files is null) return new(true, "Desktop file reading is unavailable in this session.");
-            var name = readText.Groups[1].Value.Trim().Trim('"', '\'');
-            try
-            {
-                var content = await _files.ReadDesktopTextFileAsync(name, cancellationToken);
-                return new(true, string.IsNullOrWhiteSpace(content) ? "The file is empty." : content);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
-            { return new(true, $"Could not read the file: {ex.Message}"); }
-        }
+        if (readText.Success) return await ReadDesktopTextFileAsync(readText.Groups[1].Value.Trim().Trim('"', '\''), cancellationToken);
         if (Regex.IsMatch(normalized, @"^(?:show|check|what(?:'s| is)?)\s+(?:my\s+)?(?:ram|memory)(?:\s+usage)?\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
         {
-            if (_systemInfo is null) return new(true, "System memory information is unavailable.");
+            if (_systemInfo is null) return new(true, "System memory information is unavailable.", false);
             try
             {
                 var memory = _systemInfo.GetMemoryStatus();
-                if (memory.TotalBytes == 0) return new(true, "Windows returned an empty memory status.");
+                if (memory.TotalBytes == 0) return new(true, "Windows returned an empty memory status.", false);
                 var usedGiB = memory.UsedBytes / 1024d / 1024 / 1024;
                 var totalGiB = memory.TotalBytes / 1024d / 1024 / 1024;
                 var percent = memory.UsedBytes * 100d / memory.TotalBytes;
                 return new(true, $"Memory in use: {usedGiB:0.0} GB of {totalGiB:0.0} GB ({percent:0}%).");
             }
-            catch (InvalidOperationException ex) { return new(true, ex.Message); }
+            catch (InvalidOperationException ex) { return new(true, ex.Message, false); }
         }
         if (Regex.IsMatch(normalized, @"^(?:find|show)\s+(?:my\s+)?(?:latest|most recent)\s+pdf(?:\s+file)?\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
         {
-            if (_fileSearch is null) return new(true, "Local file search is unavailable.");
+            if (_fileSearch is null) return new(true, "Local file search is unavailable.", false);
             try
             {
                 var search = await _fileSearch.FindLatestPdfAsync(cancellationToken);
@@ -151,7 +108,7 @@ public sealed partial class LocalCommandRouter
             }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
-            { return new(true, $"Local file search failed: {ex.Message}"); }
+            { return new(true, $"Local file search failed: {ex.Message}", false); }
         }
         if (Regex.IsMatch(normalized, @"^(what(?:'s| is) the )?time\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
             return new(true, $"It is {now.ToString("h:mm tt", CultureInfo.CurrentCulture)}.");
@@ -167,8 +124,8 @@ public sealed partial class LocalCommandRouter
         {
             var name = launch.Groups[1].Value.Trim().TrimEnd('.', '!');
             if (!Applications.TryGetValue(name, out var executable))
-                return new(true, $"I can open a limited set of apps directly right now. '{name}' is not in the launch allowlist yet.");
-            if (_applicationLauncher is null) return new(true, "Application launching is unavailable in this session.");
+                return new(true, $"I can open a limited set of apps directly right now. '{name}' is not in the launch allowlist yet.", false);
+            if (_applicationLauncher is null) return new(true, "Application launching is unavailable in this session.", false);
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
@@ -178,11 +135,57 @@ public sealed partial class LocalCommandRouter
             }
             catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
             {
-                return new(true, $"Windows could not open {DisplayName(name)}: {ex.Message}");
+                return new(true, $"Windows could not open {DisplayName(name)}: {ex.Message}", false);
             }
         }
 
         return new(false);
+    }
+
+    public async Task<LocalCommandResult> CreateDesktopFolderAsync(string name, CancellationToken cancellationToken = default)
+    {
+        if (_approval is null || _files is null) return new(true, "Desktop folder creation is unavailable in this session.", false);
+        string target;
+        try { target = _files.GetDesktopFolderPath(name); }
+        catch (ArgumentException ex) { return new(true, ex.Message, false); }
+        var approved = await _approval.ConfirmAsync("Create a Desktop folder?", target, cancellationToken);
+        if (!approved) return new(true, "Canceled. No folder was created.", false);
+        try { return new(true, await _files.CreateDesktopFolderAsync(name, cancellationToken)); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        { return new(true, $"Could not create the folder: {ex.Message}", false); }
+    }
+
+    public async Task<LocalCommandResult> CreateDesktopTextFileAsync(string name, string content, CancellationToken cancellationToken = default)
+    {
+        if (_approval is null || _files is null) return new(true, "Desktop file creation is unavailable in this session.", false);
+        if (content.Length > 1_000_000) return new(true, "Text file content is limited to 1,000,000 characters.", false);
+        string target;
+        try
+        {
+            target = _files.GetDesktopFilePath(name);
+            if (!Path.GetExtension(target).Equals(".txt", StringComparison.OrdinalIgnoreCase) &&
+                !Path.GetExtension(target).Equals(".md", StringComparison.OrdinalIgnoreCase))
+                return new(true, "For now, JARVIS can create only .txt or .md files on the Desktop.", false);
+        }
+        catch (ArgumentException ex) { return new(true, ex.Message, false); }
+        var preview = content.Length > 500 ? content[..500] + "… (preview truncated)" : content;
+        var approved = await _approval.ConfirmAsync("Create a text file?", $"Path: {target}\nCharacters: {content.Length}\n\nContent preview:\n{preview}", cancellationToken);
+        if (!approved) return new(true, "Canceled. No file was created.", false);
+        try { return new(true, await _files.CreateDesktopTextFileAsync(name, content, cancellationToken)); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        { return new(true, $"Could not create the file: {ex.Message}", false); }
+    }
+
+    public async Task<LocalCommandResult> ReadDesktopTextFileAsync(string name, CancellationToken cancellationToken = default)
+    {
+        if (_files is null) return new(true, "Desktop file reading is unavailable in this session.", false);
+        try
+        {
+            var content = await _files.ReadDesktopTextFileAsync(name, cancellationToken);
+            return new(true, string.IsNullOrWhiteSpace(content) ? "The file is empty." : content);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        { return new(true, $"Could not read the file: {ex.Message}", false); }
     }
 
     private static string DisplayName(string name) => name.ToLowerInvariant() switch

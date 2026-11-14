@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
 using Jarvis.Core;
@@ -14,6 +15,7 @@ namespace Jarvis.Desktop.ViewModels;
 public sealed class ChatViewModel : INotifyPropertyChanged
 {
     private readonly IAiProvider _ai;
+    private readonly IAgentToolExecutor _agentTools;
     private readonly IConversationStore _store;
     private readonly LocalCommandRouter _local;
     private readonly IUserProfileStore _profileStore;
@@ -26,9 +28,10 @@ public sealed class ChatViewModel : INotifyPropertyChanged
     private CancellationTokenSource? _activeRequest;
     private CancellationTokenSource? _speechRequest;
 
-    public ChatViewModel(IAiProvider ai, IConversationStore store, LocalCommandRouter local, IUserProfileStore profileStore, IUserPreferencesStore preferencesStore, ISpeechOutputService speechOutput)
+    public ChatViewModel(IAiProvider ai, IAgentToolExecutor agentTools, IConversationStore store, LocalCommandRouter local, IUserProfileStore profileStore, IUserPreferencesStore preferencesStore, ISpeechOutputService speechOutput)
     {
         _ai = ai;
+        _agentTools = agentTools;
         _store = store;
         _local = local;
         _profileStore = profileStore;
@@ -79,17 +82,67 @@ public sealed class ChatViewModel : INotifyPropertyChanged
                 var responseTimer = Stopwatch.StartNew();
                 var partial = new StringBuilder();
                 ChatMessage? streamedMessage = null;
-                await foreach (var chunk in _ai.StreamAsync(new ChatRequest(history, text, Mode, userProfile), _activeRequest.Token))
+                var toolHistory = new List<AiToolRound>();
+                var toolCallCount = 0;
+                var gotFinalText = false;
+                for (var turn = 0; turn < 3; turn++)
                 {
+                    var functionCalls = new List<AiFunctionCall>();
+                    await foreach (var item in _ai.StreamAsync(
+                        new ChatRequest(history, text, Mode, userProfile, toolHistory), _activeRequest.Token))
+                    {
+                        if (!string.IsNullOrEmpty(item.Text))
+                        {
+                            partial.Append(item.Text);
+                            if (streamedMessage is null)
+                            {
+                                streamedMessage = NewMessage(ChatRole.Assistant, string.Empty);
+                                Messages.Add(streamedMessage);
+                                Status = $"Gemini · first text in {responseTimer.Elapsed.TotalSeconds:0.0}s";
+                            }
+                            streamedMessage = streamedMessage with { Content = partial.ToString() };
+                            Messages[^1] = streamedMessage;
+                        }
+                        if (item.FunctionCall is not null) functionCalls.Add(item.FunctionCall);
+                    }
+
+                    if (functionCalls.Count == 0)
+                    {
+                        gotFinalText = true;
+                        break;
+                    }
+
+                    var toolResults = new List<AiToolResult>(functionCalls.Count);
+                    foreach (var functionCall in functionCalls)
+                    {
+                        _activeRequest.Token.ThrowIfCancellationRequested();
+                        JsonElement toolResponse;
+                        if (toolCallCount >= 6)
+                            toolResponse = System.Text.Json.JsonSerializer.SerializeToElement(new { success = false, result = "JARVIS reached the six-tool limit for this request; this action was not run." });
+                        else
+                        {
+                            Status = $"Running local tool: {functionCall.Name}…";
+                            toolResponse = await _agentTools.ExecuteAsync(functionCall, _activeRequest.Token);
+                            toolCallCount++;
+                        }
+                        toolResults.Add(new AiToolResult(functionCall.Name, toolResponse, functionCall.Id));
+                    }
+                    toolHistory.Add(new AiToolRound(functionCalls[0].ModelContent, toolResults));
+                }
+
+                if (!gotFinalText)
+                {
+                    partial.AppendLine().Append("I stopped after the three-step tool limit. Ask me to continue with the next part.");
                     if (streamedMessage is null)
                     {
-                        streamedMessage = NewMessage(ChatRole.Assistant, string.Empty);
+                        streamedMessage = NewMessage(ChatRole.Assistant, partial.ToString());
                         Messages.Add(streamedMessage);
-                        Status = $"Gemini · first text in {responseTimer.Elapsed.TotalSeconds:0.0}s";
                     }
-                    partial.Append(chunk);
-                    streamedMessage = streamedMessage with { Content = partial.ToString() };
-                    Messages[^1] = streamedMessage;
+                    else
+                    {
+                        streamedMessage = streamedMessage with { Content = partial.ToString() };
+                        Messages[^1] = streamedMessage;
+                    }
                 }
 
                 answer = partial.ToString().Trim();

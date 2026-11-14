@@ -10,9 +10,12 @@ namespace Jarvis.AI;
 
 public sealed class GeminiProvider(HttpClient http, ISecretStore secrets, string model = "gemini-3.8-flash") : IAiProvider
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 
-    public async IAsyncEnumerable<string> StreamAsync(ChatRequest request, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<AiStreamEvent> StreamAsync(ChatRequest request, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var key = await secrets.GetAsync("gemini-api-key", cancellationToken);
         if (string.IsNullOrWhiteSpace(key))
@@ -21,16 +24,24 @@ public sealed class GeminiProvider(HttpClient http, ISecretStore secrets, string
         var contents = request.History
             .TakeLast(12)
             .Where(message => !string.IsNullOrWhiteSpace(message.Content))
-            .Select(message => new GeminiContent(
+            .Select(message => (object)new GeminiContent(
                 message.Role == ChatRole.User ? "user" : "model",
                 [new GeminiPart(message.Content)]))
-            .Append(new GeminiContent("user", [new GeminiPart(request.UserText)]))
-            .ToArray();
+            .ToList();
+        contents.Add(new GeminiContent("user", [new GeminiPart(request.UserText)]));
+        foreach (var round in request.ToolHistory ?? [])
+        {
+            contents.Add(round.ModelContent);
+            contents.Add(new GeminiContent("user", round.Results
+                .Select(result => new GeminiPart(FunctionResponse: new GeminiFunctionResponse(result.Name, result.Response, result.Id)))
+                .ToArray()));
+        }
 
         var payload = new GeminiRequest(
             contents,
             new GeminiSystemInstruction([new GeminiPart(SystemPrompt.For(request.Mode, request.UserProfile))]),
-            new GeminiGenerationConfig(Temperature: 0.4, MaxOutputTokens: 2048));
+            new GeminiGenerationConfig(Temperature: 0.4, MaxOutputTokens: 2048),
+            [new GeminiTool(FunctionDeclarations())]);
 
         using var message = new HttpRequestMessage(
             HttpMethod.Post,
@@ -52,7 +63,8 @@ public sealed class GeminiProvider(HttpClient http, ISecretStore secrets, string
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var reader = new StreamReader(stream);
-        var anyText = false;
+        var anyOutput = false;
+        var functionCalls = new Dictionary<string, AiFunctionCall>(StringComparer.Ordinal);
         while (await reader.ReadLineAsync(cancellationToken) is { } line)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -61,37 +73,86 @@ public sealed class GeminiProvider(HttpClient http, ISecretStore secrets, string
             if (json.Length == 0 || json == "[DONE]") continue;
             using var document = JsonDocument.Parse(json);
             if (!document.RootElement.TryGetProperty("candidates", out var candidates)) continue;
-            foreach (var candidate in candidates.EnumerateArray())
+            foreach (var candidate in candidates.EnumerateArray().Take(1))
             {
                 if (!candidate.TryGetProperty("content", out var content) || !content.TryGetProperty("parts", out var parts)) continue;
                 foreach (var part in parts.EnumerateArray())
                 {
-                    if (!part.TryGetProperty("text", out var textValue)) continue;
-                    var chunk = textValue.GetString();
-                    if (string.IsNullOrEmpty(chunk)) continue;
-                    anyText = true;
-                    yield return chunk;
+                    if (part.TryGetProperty("text", out var textValue))
+                    {
+                        var chunk = textValue.GetString();
+                        if (!string.IsNullOrEmpty(chunk))
+                        {
+                            anyOutput = true;
+                            yield return new AiStreamEvent(Text: chunk);
+                        }
+                    }
+                    if (part.TryGetProperty("functionCall", out var functionCall) && functionCall.TryGetProperty("name", out var nameValue))
+                    {
+                        var name = nameValue.GetString();
+                        if (string.IsNullOrWhiteSpace(name)) continue;
+                        var arguments = functionCall.TryGetProperty("args", out var args) ? args.Clone() : EmptyObject();
+                        anyOutput = true;
+                        var id = functionCall.TryGetProperty("id", out var idValue) ? idValue.GetString() : null;
+                        functionCalls[id ?? name] = new AiFunctionCall(name, arguments, content.Clone(), id);
+                    }
                 }
             }
         }
-        if (!anyText)
-            throw new InvalidDataException("Gemini returned no text. Try a shorter request or check the selected model.");
+        foreach (var functionCall in functionCalls.Values)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return new AiStreamEvent(FunctionCall: functionCall);
+        }
+        if (!anyOutput)
+            throw new InvalidDataException("Gemini returned no text or tool call. Try a shorter request or check the selected model.");
     }
 
     private sealed record GeminiRequest(
-        [property: JsonPropertyName("contents")] IReadOnlyList<GeminiContent> Contents,
+        [property: JsonPropertyName("contents")] IReadOnlyList<object> Contents,
         [property: JsonPropertyName("systemInstruction")] GeminiSystemInstruction SystemInstruction,
-        [property: JsonPropertyName("generationConfig")] GeminiGenerationConfig GenerationConfig);
+        [property: JsonPropertyName("generationConfig")] GeminiGenerationConfig GenerationConfig,
+        [property: JsonPropertyName("tools")] IReadOnlyList<GeminiTool> Tools);
 
     private sealed record GeminiContent(
         [property: JsonPropertyName("role")] string Role,
         [property: JsonPropertyName("parts")] IReadOnlyList<GeminiPart> Parts);
 
-    private sealed record GeminiPart([property: JsonPropertyName("text")] string Text);
+    private sealed record GeminiPart(
+        [property: JsonPropertyName("text")] string? Text = null,
+        [property: JsonPropertyName("functionResponse")] GeminiFunctionResponse? FunctionResponse = null);
+    private sealed record GeminiFunctionResponse(
+        [property: JsonPropertyName("name")] string Name,
+        [property: JsonPropertyName("response")] JsonElement Response,
+        [property: JsonPropertyName("id")] string? Id = null);
+    private sealed record GeminiTool([property: JsonPropertyName("functionDeclarations")] JsonElement FunctionDeclarations);
     private sealed record GeminiSystemInstruction([property: JsonPropertyName("parts")] IReadOnlyList<GeminiPart> Parts);
     private sealed record GeminiGenerationConfig(
         [property: JsonPropertyName("temperature")] double Temperature,
         [property: JsonPropertyName("maxOutputTokens")] int MaxOutputTokens);
+
+    private static JsonElement EmptyObject() => ParseJsonElement("{}");
+
+    private static JsonElement FunctionDeclarations() => ParseJsonElement("""
+        [
+          {"name":"get_current_time","description":"Get the current local Windows time.","parameters":{"type":"OBJECT","properties":{}}},
+          {"name":"get_current_date","description":"Get today's local date.","parameters":{"type":"OBJECT","properties":{}}},
+          {"name":"get_system_memory","description":"Read total and currently available physical memory.","parameters":{"type":"OBJECT","properties":{}}},
+          {"name":"find_latest_pdf","description":"Find the most recently modified PDF in Desktop, Documents, or Downloads.","parameters":{"type":"OBJECT","properties":{}}},
+          {"name":"open_application","description":"Open an application from JARVIS's limited allowlist.","parameters":{"type":"OBJECT","properties":{"application":{"type":"STRING","description":"Application name such as Notepad, Calculator, VS Code, or Visual Studio."}},"required":["application"]}},
+          {"name":"create_desktop_folder","description":"Create a new folder directly on the Desktop after asking the user to confirm.","parameters":{"type":"OBJECT","properties":{"name":{"type":"STRING","description":"Single folder name, without a path."}},"required":["name"]}},
+          {"name":"create_desktop_text_file","description":"Create a new .txt or .md file directly on the Desktop after user confirmation.","parameters":{"type":"OBJECT","properties":{"name":{"type":"STRING","description":"File name ending in .txt or .md."},"content":{"type":"STRING","description":"Full text content to write."}},"required":["name","content"]}},
+          {"name":"read_desktop_text_file","description":"Read a supported text file up to 1 MB directly on the Desktop.","parameters":{"type":"OBJECT","properties":{"name":{"type":"STRING","description":"File name, not a path."}},"required":["name"]}},
+          {"name":"create_reminder","description":"Create a local reminder in the next year.","parameters":{"type":"OBJECT","properties":{"amount":{"type":"INTEGER","description":"Positive delay amount."},"unit":{"type":"STRING","enum":["minutes","hours","days"]},"title":{"type":"STRING","description":"Reminder text up to 160 characters."}},"required":["amount","unit","title"]}},
+          {"name":"list_reminders","description":"List upcoming local reminders.","parameters":{"type":"OBJECT","properties":{}}}
+        ]
+        """);
+
+    private static JsonElement ParseJsonElement(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.Clone();
+    }
 
 }
 
@@ -105,7 +166,7 @@ internal static class SystemPrompt
         return $"""
             You are JARVIS, a concise and capable Windows assistant. The user's current mode is {mode}.
             Be direct and honest. Never claim that you performed a computer action unless the local application confirms it.
-            You cannot run arbitrary commands, browse private files, or take actions yourself. For any such request, explain the local capability or ask for the needed approval.
+            You can use only the declared JARVIS tools for local actions. The application validates every argument and asks before changing files. Never claim an action succeeded until a tool result confirms it. Never invent tools or attempt shell commands.
             Keep answers focused; use clear technical explanations when the user asks to learn.
             {personalContext}
             """;
