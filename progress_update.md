@@ -60,3 +60,10 @@ Last updated: 2026-11-14
 ## Update policy
 
 Append a dated entry here whenever a meaningful project increment is completed. Record the change, the exact test/build result, and whether it has been pushed; do not mark planned work as done.
+
+## 2026-11-14 increment — local system status
+
+- Added a local system status command reporting sampled CPU utilization, logical processor count, RAM use, and cumulative receive/send traffic across active non-loopback network adapters.
+- GPU utilization is explicitly reported as unavailable; no estimate or fabricated value is shown.
+- Added a router test covering the status response. Verification: **47 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
+- This increment is ready to push to `feature/jarvis-desktop`; publication status will be recorded after the push.

@@ -95,9 +95,12 @@ public sealed record MemoryStatus(ulong TotalBytes, ulong AvailableBytes)
     public ulong UsedBytes => TotalBytes >= AvailableBytes ? TotalBytes - AvailableBytes : 0;
 }
 
+public sealed record SystemSnapshot(double? CpuPercent, ulong BytesReceived, ulong BytesSent, int ProcessorCount);
+
 public interface ISystemInfoProvider
 {
     MemoryStatus GetMemoryStatus();
+    Task<SystemSnapshot> GetSystemSnapshotAsync(CancellationToken cancellationToken = default);
 }
 
 public sealed record LocalFileMatch(string FullPath, DateTime LastModified);

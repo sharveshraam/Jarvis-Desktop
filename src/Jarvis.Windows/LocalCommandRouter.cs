@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net.NetworkInformation;
 using System.Text.RegularExpressions;
 using Jarvis.Core;
 
@@ -156,6 +157,24 @@ public sealed partial class LocalCommandRouter
                 return new(true, $"Memory in use: {usedGiB:0.0} GB of {totalGiB:0.0} GB ({percent:0}%).");
             }
             catch (InvalidOperationException ex) { return new(true, ex.Message, false); }
+        }
+        if (Regex.IsMatch(normalized, @"^(?:show|check|give me)\s+(?:my\s+)?(?:system status|system performance|computer status)\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            if (_systemInfo is null) return new(true, "System information is unavailable.", false);
+            try
+            {
+                var memory = _systemInfo.GetMemoryStatus();
+                var snapshot = await _systemInfo.GetSystemSnapshotAsync(cancellationToken);
+                var usedGiB = memory.UsedBytes / 1024d / 1024 / 1024;
+                var totalGiB = memory.TotalBytes / 1024d / 1024 / 1024;
+                var receivedGiB = snapshot.BytesReceived / 1024d / 1024 / 1024;
+                var sentGiB = snapshot.BytesSent / 1024d / 1024 / 1024;
+                var cpu = snapshot.CpuPercent is null ? "unavailable" : $"{snapshot.CpuPercent:0}%";
+                return new(true, $"System status (local): CPU {cpu} across {snapshot.ProcessorCount} logical processors; RAM {usedGiB:0.0}/{totalGiB:0.0} GB; network totals received {receivedGiB:0.00} GB, sent {sentGiB:0.00} GB (active non-loopback adapters). GPU utilization is not available in this version.");
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) when (ex is InvalidOperationException or NetworkInformationException)
+            { return new(true, $"Could not read system status: {ex.Message}", false); }
         }
         if (Regex.IsMatch(normalized, @"^(?:find|show)\s+(?:my\s+)?(?:latest|most recent)\s+pdf(?:\s+file)?\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
         {
