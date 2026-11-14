@@ -63,4 +63,48 @@ public sealed class PersistenceTests
             }
         }
     }
+
+    [Fact]
+    public async Task UserProfileDefaultsCanBeEditedAndPersistedLocally()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"jarvis-profile-test-{Guid.NewGuid():N}");
+        try
+        {
+            var path = Path.Combine(directory, "profile.json");
+            var store = new JsonUserProfileStore(path);
+            Assert.Equal(UserProfile.Default, await store.GetAsync());
+
+            var edited = new UserProfile("  Ram  ", "  Explain DSP with a derivation and one practical example.  ");
+            await store.SaveAsync(edited);
+            Assert.Equal(new UserProfile("Ram", "Explain DSP with a derivation and one practical example."), await new JsonUserProfileStore(path).GetAsync());
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                foreach (var file in Directory.EnumerateFiles(directory)) File.Delete(file);
+                Directory.Delete(directory);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task UserProfileStoreRejectsOversizedContext()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"jarvis-profile-test-{Guid.NewGuid():N}");
+        try
+        {
+            var store = new JsonUserProfileStore(Path.Combine(directory, "profile.json"));
+            await Assert.ThrowsAsync<ArgumentException>(() => store.SaveAsync(new UserProfile("Ram", new string('x', 4_001))));
+            Assert.False(Directory.Exists(directory));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                foreach (var file in Directory.EnumerateFiles(directory)) File.Delete(file);
+                Directory.Delete(directory);
+            }
+        }
+    }
 }

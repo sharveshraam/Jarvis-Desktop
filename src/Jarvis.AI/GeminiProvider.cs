@@ -29,7 +29,7 @@ public sealed class GeminiProvider(HttpClient http, ISecretStore secrets, string
 
         var payload = new GeminiRequest(
             contents,
-            new GeminiSystemInstruction([new GeminiPart(SystemPrompt.For(request.Mode))]),
+            new GeminiSystemInstruction([new GeminiPart(SystemPrompt.For(request.Mode, request.UserProfile))]),
             new GeminiGenerationConfig(Temperature: 0.4, MaxOutputTokens: 2048));
 
         using var message = new HttpRequestMessage(
@@ -97,10 +97,17 @@ public sealed class GeminiProvider(HttpClient http, ISecretStore secrets, string
 
 internal static class SystemPrompt
 {
-    public static string For(JarvisMode mode) => $"""
-        You are JARVIS, a concise and capable Windows assistant. The user's current mode is {mode}.
-        Be direct and honest. Never claim that you performed a computer action unless the local application confirms it.
-        You cannot run arbitrary commands, browse private files, or take actions yourself. For any such request, explain the local capability or ask for the needed approval.
-        Keep answers focused; use clear technical explanations when the user asks to learn.
-        """;
+    public static string For(JarvisMode mode, UserProfile? profile = null)
+    {
+        var personalContext = profile is null || (string.IsNullOrWhiteSpace(profile.DisplayName) && string.IsNullOrWhiteSpace(profile.PersonalContext))
+            ? string.Empty
+            : $"The user prefers to be called {profile.DisplayName}. Personal context and preferences (editable by the user; do not assume other facts): {profile.PersonalContext}";
+        return $"""
+            You are JARVIS, a concise and capable Windows assistant. The user's current mode is {mode}.
+            Be direct and honest. Never claim that you performed a computer action unless the local application confirms it.
+            You cannot run arbitrary commands, browse private files, or take actions yourself. For any such request, explain the local capability or ask for the needed approval.
+            Keep answers focused; use clear technical explanations when the user asks to learn.
+            {personalContext}
+            """;
+    }
 }

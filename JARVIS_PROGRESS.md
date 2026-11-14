@@ -15,6 +15,7 @@
 | WPF app shell and chat | Working foundation; modes and cancel are wired |
 | System tray | Implemented: close hides the window, tray double-click/menu reopens, explicit Quit exits |
 | Gemini provider and protected key | Streaming provider implemented; no live API test because no key was configured |
+| Editable profile | Local JSON profile with user-editable name and context; included in Gemini system instruction; Settings discloses cloud transfer |
 | Local conversation persistence | SQLite history tested |
 | Gemini key protection | Windows current-user DPAPI round-trip tested |
 | Safe local command fast path | Time/date, arithmetic, and allowlisted Notepad, Calculator, Paint, File Explorer, VS Code, and Visual Studio launch requests; tested without launching apps in tests |
@@ -31,7 +32,7 @@
 ## Verification completed
 
 - .NET 10.0.404 Release solution build: 0 warnings, 0 errors.
-- Automated tests: 16 passed, 0 failed (fast-path routing, allowlisted development-app launch, approved/canceled/rejected Desktop folder creation, approved/canceled text file creation and readback, local RAM reporting, newest-PDF search, SQLite history, DPAPI secret round-trip).
+- Automated tests: 19 passed, 0 failed (fast-path routing, allowlisted development-app launch, approved/canceled/rejected Desktop file actions, local RAM reporting, newest-PDF search, SQLite history, DPAPI secret round-trip, user-profile persistence/validation, Gemini SSE/profile/key placement).
 - Published and opened a self-contained `win-x64` single-file build.
 - Live UI smoke check: `calculate 17 * 23` returned `391` with the `Completed locally` status.
 - Gemini network streaming was not tested against a real account because no API key was configured.

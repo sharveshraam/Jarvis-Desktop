@@ -6,7 +6,20 @@ public sealed record ChatMessage(string Id, ChatRole Role, string Content, DateT
 
 public enum JarvisMode { Personal, Study, Development, Research, Focus, System, Creator }
 
-public sealed record ChatRequest(IReadOnlyList<ChatMessage> History, string UserText, JarvisMode Mode);
+public sealed record ChatRequest(IReadOnlyList<ChatMessage> History, string UserText, JarvisMode Mode, UserProfile? UserProfile = null);
+
+public sealed record UserProfile(string DisplayName, string PersonalContext)
+{
+    public static UserProfile Default { get; } = new(
+        "Ram",
+        "ECE student at Amrita Vishwa Vidyapeetham, Amritapuri. Interested in electronics, embedded systems, software development, and AI. For learning, prefers university-level depth with clear explanations, derivations, and practical examples. Treat these as editable preferences, not confirmed facts.");
+}
+
+public interface IUserProfileStore
+{
+    Task<UserProfile> GetAsync(CancellationToken cancellationToken = default);
+    Task SaveAsync(UserProfile profile, CancellationToken cancellationToken = default);
+}
 
 public sealed record ChatResponse(string Text, string Model, TimeSpan Elapsed);
 

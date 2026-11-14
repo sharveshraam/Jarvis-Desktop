@@ -16,17 +16,19 @@ public sealed class ChatViewModel : INotifyPropertyChanged
     private readonly IAiProvider _ai;
     private readonly IConversationStore _store;
     private readonly LocalCommandRouter _local;
+    private readonly IUserProfileStore _profileStore;
     private string _input = string.Empty;
     private string _status = "Local commands ready";
     private JarvisMode _mode = JarvisMode.Personal;
     private bool _isBusy;
     private CancellationTokenSource? _activeRequest;
 
-    public ChatViewModel(IAiProvider ai, IConversationStore store, LocalCommandRouter local)
+    public ChatViewModel(IAiProvider ai, IConversationStore store, LocalCommandRouter local, IUserProfileStore profileStore)
     {
         _ai = ai;
         _store = store;
         _local = local;
+        _profileStore = profileStore;
         Messages.CollectionChanged += (_, _) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsEmpty)));
         SendCommand = new AsyncRelayCommand(SendAsync, () => !IsBusy && !string.IsNullOrWhiteSpace(Input));
         CancelCommand = new RelayCommand(Cancel, () => IsBusy);
@@ -68,10 +70,11 @@ public sealed class ChatViewModel : INotifyPropertyChanged
             {
                 Status = "Sending this conversation to Gemini…";
                 var history = Messages.Where(m => m.Id != user.Id).TakeLast(12).ToArray();
+                var userProfile = await _profileStore.GetAsync(_activeRequest.Token);
                 var responseTimer = Stopwatch.StartNew();
                 var partial = new StringBuilder();
                 ChatMessage? streamedMessage = null;
-                await foreach (var chunk in _ai.StreamAsync(new ChatRequest(history, text, Mode), _activeRequest.Token))
+                await foreach (var chunk in _ai.StreamAsync(new ChatRequest(history, text, Mode, userProfile), _activeRequest.Token))
                 {
                     if (streamedMessage is null)
                     {

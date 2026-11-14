@@ -36,13 +36,20 @@ public partial class MainWindow : Window
 
     private async void Settings_Click(object sender, RoutedEventArgs e)
     {
-        var settings = new SettingsWindow(App.Current.Services().GetRequiredService<ISecretStore>()) { Owner = this };
-        settings.ShowDialog();
-        if (settings.NewApiKey is { Length: > 0 } key)
+        var services = App.Current.Services();
+        var settings = new SettingsWindow(
+            services.GetRequiredService<ISecretStore>(),
+            services.GetRequiredService<IUserProfileStore>()) { Owner = this };
+        if (settings.ShowDialog() != true) return;
+        try
         {
-            await App.Current.Services().GetRequiredService<ISecretStore>().SetAsync("gemini-api-key", key);
-            ((ChatViewModel)DataContext).Status = "Gemini key saved with Windows protection";
+            if (settings.NewApiKey is { Length: > 0 } key)
+                await services.GetRequiredService<ISecretStore>().SetAsync("gemini-api-key", key);
+            if (settings.NewProfile is { } profile)
+                await services.GetRequiredService<IUserProfileStore>().SaveAsync(profile);
+            ((ChatViewModel)DataContext).Status = "Settings saved";
         }
+        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Could not save settings", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
 }
 
