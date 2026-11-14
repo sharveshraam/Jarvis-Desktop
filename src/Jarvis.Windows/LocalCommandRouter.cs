@@ -170,7 +170,8 @@ public sealed partial class LocalCommandRouter
                 var receivedGiB = snapshot.BytesReceived / 1024d / 1024 / 1024;
                 var sentGiB = snapshot.BytesSent / 1024d / 1024 / 1024;
                 var cpu = snapshot.CpuPercent is null ? "unavailable" : $"{snapshot.CpuPercent:0}%";
-                return new(true, $"System status (local): CPU {cpu} across {snapshot.ProcessorCount} logical processors; RAM {usedGiB:0.0}/{totalGiB:0.0} GB; network totals received {receivedGiB:0.00} GB, sent {sentGiB:0.00} GB (active non-loopback adapters). GPU utilization is not available in this version.");
+                var gpu = snapshot.GpuBusiestEnginePercent is null ? "unavailable" : $"{snapshot.GpuBusiestEnginePercent:0}% busiest engine";
+                return new(true, $"System status (local): CPU {cpu} across {snapshot.ProcessorCount} logical processors; GPU {gpu}; RAM {usedGiB:0.0}/{totalGiB:0.0} GB; network totals received {receivedGiB:0.00} GB, sent {sentGiB:0.00} GB (active non-loopback adapters).");
             }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex) when (ex is InvalidOperationException or NetworkInformationException)

@@ -116,14 +116,14 @@ public sealed class LocalCommandRouterTests
     {
         var router = new LocalCommandRouter(systemInfo: new FakeSystemInfo(
             new MemoryStatus(16UL * 1024 * 1024 * 1024, 6UL * 1024 * 1024 * 1024),
-            new SystemSnapshot(27.4, 2UL * 1024 * 1024 * 1024, 512UL * 1024 * 1024, 20)));
+            new SystemSnapshot(27.4, 2UL * 1024 * 1024 * 1024, 512UL * 1024 * 1024, 20, 63.8)));
         var result = await router.TryRunAsync("show system status");
         Assert.True(result.Handled);
         Assert.Contains("CPU 27%", result.Response);
         Assert.Contains("20 logical processors", result.Response);
         Assert.Contains("RAM 10.0/16.0 GB", result.Response);
         Assert.Contains("received 2.00 GB, sent 0.50 GB", result.Response);
-        Assert.Contains("GPU utilization is not available", result.Response);
+        Assert.Contains("GPU 64% busiest engine", result.Response);
     }
 
     [Fact]

@@ -53,7 +53,7 @@ Last updated: 2026-11-14
 - Improve and benchmark speech recognition/TTS, including manual microphone and interruption tests; current voice implementation is a basic local baseline.
 - Implement richer research/search integrations, context management, configurable routing beyond a single Gemini model, and broader software-development workflows.
 - Expand background task controls/checkpoints, verification evidence, and non-.NET toolchains.
-- Add diagnostics for system CPU/GPU/network and detailed voice/provider state.
+- Add detailed voice/provider state to diagnostics; local CPU, busiest GPU-engine, RAM, and network diagnostics are implemented.
 - Complete security/privacy and performance evaluations, run acceptance tests, and conduct a live Gemini test after a key is configured.
 - Create and verify a polished installer and final self-contained Windows executable after the project is sufficiently complete.
 
@@ -67,3 +67,10 @@ Append a dated entry here whenever a meaningful project increment is completed. 
 - GPU utilization is explicitly reported as unavailable; no estimate or fabricated value is shown.
 - Added a router test covering the status response. Verification: **47 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
 - Pushed as `b5e306e feat: add local CPU and network diagnostics` to `origin/feature/jarvis-desktop`.
+
+## 2026-11-14 increment — GPU engine diagnostics
+
+- Added Windows Performance Data Helper sampling for the busiest `GPU Engine` utilization counter. JARVIS labels this as busiest-engine utilization rather than presenting it as an aggregate across all GPU engines.
+- The value is optional: when Windows or the installed driver does not expose GPU engine counters, the system-status response says GPU data is unavailable.
+- Added an end-to-end Windows system-counter test and expanded the status-router test. Verification: **48 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
+- This increment is ready to push to `feature/jarvis-desktop`; publication status will be recorded after the push.
