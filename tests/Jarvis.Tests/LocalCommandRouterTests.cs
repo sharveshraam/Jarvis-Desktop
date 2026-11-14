@@ -124,6 +124,44 @@ public sealed class LocalCommandRouterTests
         }
     }
 
+    [Fact]
+    public async Task CreatesTextFileOnlyAfterApprovalAndReadsItLocally()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"jarvis-file-test-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var approval = new FakeApproval(true);
+            var router = new LocalCommandRouter(approval, new DesktopFileSystem(root));
+            var created = await router.TryRunAsync("create a text file named Notes.txt on my desktop with content: Remember the lab meeting");
+            Assert.Contains("Created the text file", created.Response);
+            Assert.Contains("Remember the lab meeting", approval.Details);
+            var read = await router.TryRunAsync("read file Notes.txt on my desktop");
+            Assert.Equal("Remember the lab meeting", read.Response);
+        }
+        finally
+        {
+            var file = Path.Combine(root, "Notes.txt");
+            if (File.Exists(file)) File.Delete(file);
+            Directory.Delete(root);
+        }
+    }
+
+    [Fact]
+    public async Task DeclinedTextFileCreationLeavesNoFile()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"jarvis-file-test-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var router = new LocalCommandRouter(new FakeApproval(false), new DesktopFileSystem(root));
+            var result = await router.TryRunAsync("create a text file named Notes.txt on my desktop with content: Do not create me");
+            Assert.Equal("Canceled. No file was created.", result.Response);
+            Assert.Empty(Directory.EnumerateFileSystemEntries(root));
+        }
+        finally { Directory.Delete(root); }
+    }
+
     private sealed class FakeApproval(bool approved) : IActionApproval
     {
         public bool Called { get; private set; }

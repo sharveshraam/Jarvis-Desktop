@@ -51,6 +51,41 @@ public sealed partial class LocalCommandRouter
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
             { return new(true, $"Could not create the folder: {ex.Message}"); }
         }
+        var createText = CreateTextFilePattern().Match(normalized);
+        if (createText.Success)
+        {
+            var name = createText.Groups[1].Value.Trim().Trim('"', '\'');
+            var content = createText.Groups[2].Value;
+            if (_approval is null || _files is null) return new(true, "Desktop file creation is unavailable in this session.");
+            string target;
+            try
+            {
+                target = _files.GetDesktopFilePath(name);
+                if (!Path.GetExtension(target).Equals(".txt", StringComparison.OrdinalIgnoreCase) &&
+                    !Path.GetExtension(target).Equals(".md", StringComparison.OrdinalIgnoreCase))
+                    return new(true, "For now, JARVIS can create only .txt or .md files on the Desktop.");
+            }
+            catch (ArgumentException ex) { return new(true, ex.Message); }
+            var preview = content.Length > 500 ? content[..500] + "… (preview truncated)" : content;
+            var approved = await _approval.ConfirmAsync("Create a text file?", $"Path: {target}\nCharacters: {content.Length}\n\nContent preview:\n{preview}", cancellationToken);
+            if (!approved) return new(true, "Canceled. No file was created.");
+            try { return new(true, await _files.CreateDesktopTextFileAsync(name, content, cancellationToken)); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+            { return new(true, $"Could not create the file: {ex.Message}"); }
+        }
+        var readText = ReadTextFilePattern().Match(normalized);
+        if (readText.Success)
+        {
+            if (_files is null) return new(true, "Desktop file reading is unavailable in this session.");
+            var name = readText.Groups[1].Value.Trim().Trim('"', '\'');
+            try
+            {
+                var content = await _files.ReadDesktopTextFileAsync(name, cancellationToken);
+                return new(true, string.IsNullOrWhiteSpace(content) ? "The file is empty." : content);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+            { return new(true, $"Could not read the file: {ex.Message}"); }
+        }
         if (Regex.IsMatch(normalized, @"^(?:show|check|what(?:'s| is)?)\s+(?:my\s+)?(?:ram|memory)(?:\s+usage)?\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
         {
             if (_systemInfo is null) return new(true, "System memory information is unavailable.");
@@ -142,6 +177,12 @@ public sealed partial class LocalCommandRouter
 
     [GeneratedRegex("^create\\s+(?:a\\s+)?folder\\s+(?:called|named)\\s+(.+?)\\s+(?:on|at)\\s+(?:my\\s+)?desktop[.!]?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CreateFolderPattern();
+
+    [GeneratedRegex("^create\\s+(?:a\\s+)?text\\s+file\\s+(?:called|named)\\s+(.+?)\\s+on\\s+(?:my\\s+)?desktop\\s+with\\s+content:\\s*([\\s\\S]+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex CreateTextFilePattern();
+
+    [GeneratedRegex("^read\\s+(?:the\\s+)?file\\s+(.+?)\\s+(?:on|from)\\s+(?:my\\s+)?desktop[.!]?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ReadTextFilePattern();
 
     [GeneratedRegex(@"^(?:calculate|what is)\s+(.+?)\s*\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CalculationPattern();
