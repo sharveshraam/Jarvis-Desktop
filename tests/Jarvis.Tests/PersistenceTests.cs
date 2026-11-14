@@ -149,4 +149,27 @@ public sealed class PersistenceTests
             }
         }
     }
+
+    [Fact]
+    public async Task UserPreferencesPersistAndValidateGeminiModelId()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"jarvis-prefs-test-{Guid.NewGuid():N}");
+        try
+        {
+            var path = Path.Combine(directory, "preferences.json");
+            var store = new JsonUserPreferencesStore(path);
+            var chosen = new UserPreferences("Ctrl+Shift+F12", false, GeminiModel: "gemini-3.7-flash");
+            await store.SaveAsync(chosen);
+            Assert.Equal(chosen, await new JsonUserPreferencesStore(path).GetAsync());
+            await Assert.ThrowsAsync<ArgumentException>(() => store.SaveAsync(chosen with { GeminiModel = "../../not-a-model" }));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                foreach (var file in Directory.EnumerateFiles(directory)) File.Delete(file);
+                Directory.Delete(directory);
+            }
+        }
+    }
 }

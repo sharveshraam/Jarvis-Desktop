@@ -33,7 +33,7 @@ public interface IUserProfileStore
     Task SaveAsync(UserProfile profile, CancellationToken cancellationToken = default);
 }
 
-public sealed record UserPreferences(string GlobalShortcut, bool RunAtStartup, bool SpeakResponses = false, string? ProjectWorkspacePath = null)
+public sealed record UserPreferences(string GlobalShortcut, bool RunAtStartup, bool SpeakResponses = false, string? ProjectWorkspacePath = null, string GeminiModel = "gemini-3.8-flash")
 {
     public static UserPreferences Default { get; } = new("Ctrl+Shift+F12", false);
 }

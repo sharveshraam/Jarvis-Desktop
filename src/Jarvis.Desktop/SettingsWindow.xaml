@@ -28,6 +28,9 @@
         <TextBlock Text="Gemini connection" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,10"/>
         <TextBlock Text="API key" Margin="0,0,0,6"/>
         <PasswordBox x:Name="ApiKeyBox" Background="#222A34" Foreground="#F2F5F8" BorderBrush="#35404D" Padding="8"/>
+        <TextBlock Text="Gemini model ID" Margin="0,12,0,5"/>
+        <TextBox x:Name="GeminiModelBox" MaxLength="100" Background="#222A34" Foreground="#F2F5F8" BorderBrush="#35404D" Padding="8"/>
+        <TextBlock Text="Default: gemini-3.8-flash. Use a model ID enabled for your Google AI account." FontSize="11" Foreground="#82909F" Margin="0,6,0,0"/>
         <TextBlock Text="A saved key is protected by Windows. Leave blank to keep it; a new key replaces it. Keys are never committed." FontSize="11" Foreground="#82909F" Margin="0,7,0,0"/>
       </StackPanel>
     </ScrollViewer>

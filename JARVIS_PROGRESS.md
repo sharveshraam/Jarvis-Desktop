@@ -16,6 +16,7 @@
 | System tray | Implemented: close hides the window, tray double-click/menu reopens, explicit Quit exits |
 | Startup and global shortcut | Settings include optional Windows sign-in launch and configurable global key chord; Ctrl+Alt+J was occupied during smoke check, default changed to Ctrl+Shift+F12; new default registration still needs live verification |
 | Gemini provider and protected key | Streaming provider, function declarations, structured tool-call parsing, and protected key implemented; live API not tested because no key was configured |
+| Model configuration | Gemini model ID is editable in Settings and applied per request; default ID checked against Google's current stable model catalog; real account availability remains unverified |
 | Agent execution | Bounded to three model/tool rounds and six local calls per request; allowlisted tools validate arguments; file writes require approval and Gemini-requested file reads require explicit sharing approval |
 | Project workspace | User-selected workspace; bounded source listing/search/read and approve-before-write previews; traversal, reparse points, build output, dependency folders, and unsupported extensions are excluded; source disclosure requires approval |
 | Persistent memory | Explicit local `remember` command, list/search, and approval-gated forget; stored in SQLite with duplicate suppression; memory is not automatically attached to Gemini requests |
@@ -29,14 +30,14 @@
 | System information | RAM usage read directly from Windows; local routing covered by a deterministic test |
 | File discovery | Bounded local recursive PDF search across Desktop, Documents, and Downloads; skips junctions and reports when the search cap is reached |
 | Speech recognition and TTS | Local System.Speech dictation button with review-before-send; optional read-aloud preference off by default; live microphone and voice checks pending |
-| Long-term memory and background tasks | Planned |
+| Background task queues and checkpoints | Planned |
 | Windows build workflow | Added; portable ZIP artifact |
 | Installer | Not implemented yet |
 
 ## Verification completed
 
 - .NET 10.0.404 Release solution build: 0 warnings, 0 errors.
-- Automated tests: 38 passed, 0 failed (previous coverage plus local memory persistence, duplicate suppression, search, and approval-gated deletion).
+- Automated tests: 40 passed, 0 failed (previous coverage plus local memory and configurable Gemini model routing/persistence).
 - Latest full Release solution build: 0 warnings, 0 errors.
 - An earlier development milestone was published and opened as a self-contained `win-x64` single-file build; latest structured-tool and speech changes still need a fresh runtime smoke check.
 - Live UI smoke check: `calculate 17 * 23` returned `391` with the `Completed locally` status.

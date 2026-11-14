@@ -8,7 +8,7 @@ using Jarvis.Core;
 
 namespace Jarvis.AI;
 
-public sealed class GeminiProvider(HttpClient http, ISecretStore secrets, string model = "gemini-3.8-flash") : IAiProvider
+public sealed class GeminiProvider(HttpClient http, ISecretStore secrets, string model = "gemini-3.8-flash", IUserPreferencesStore? preferences = null) : IAiProvider
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -20,6 +20,7 @@ public sealed class GeminiProvider(HttpClient http, ISecretStore secrets, string
         var key = await secrets.GetAsync("gemini-api-key", cancellationToken);
         if (string.IsNullOrWhiteSpace(key))
             throw new InvalidOperationException("Add a Gemini API key in Settings to use cloud chat. Local commands still work without it.");
+        var selectedModel = preferences is null ? model : (await preferences.GetAsync(cancellationToken)).GeminiModel;
 
         var contents = request.History
             .TakeLast(12)
@@ -45,7 +46,7 @@ public sealed class GeminiProvider(HttpClient http, ISecretStore secrets, string
 
         using var message = new HttpRequestMessage(
             HttpMethod.Post,
-            $"v1beta/models/{Uri.EscapeDataString(model)}:streamGenerateContent?alt=sse");
+            $"v1beta/models/{Uri.EscapeDataString(selectedModel)}:streamGenerateContent?alt=sse");
         message.Headers.TryAddWithoutValidation("x-goog-api-key", key);
         message.Content = JsonContent.Create(payload, options: JsonOptions);
         using var response = await http.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);

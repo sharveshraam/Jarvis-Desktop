@@ -33,6 +33,7 @@
 | Runtime | .NET 10 LTS + WPF | Supported Windows desktop stack; Windows-only UI |
 | Local store | SQLite via Microsoft.Data.Sqlite | Small local database; no server |
 | LLM | Gemini REST behind `IAiProvider` | Direct API, no provider SDK lock-in; cloud chat requires internet |
+| Gemini model | User-configurable model ID in Settings; default `gemini-3.8-flash` | Current model catalog lists this as stable and supports function calling; account access and model availability can still vary. See [Google's model catalog](https://ai.google.dev/gemini-api/docs/models) |
 | Secret storage | Current-user DPAPI via Windows API | Secrets are portable only within this Windows user profile |
 | Local action model | Deterministic allowlist, no arbitrary shell | Safe and fast for common tasks; narrower than a general agent |
 
@@ -41,4 +42,5 @@
 - Never commit API keys, local databases, transcripts, or machine-specific settings.
 - No background microphone, screen, or clipboard capture.
 - Cloud requests are explicit and should disclose what content is sent.
+- Long-term memory is stored locally and is never automatically appended to Gemini context.
 - Destructive or externally visible operations remain approval-gated.

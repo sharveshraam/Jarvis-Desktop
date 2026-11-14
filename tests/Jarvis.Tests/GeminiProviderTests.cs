@@ -79,6 +79,19 @@ public sealed class GeminiProviderTests
         Assert.Equal("There are 8 GB available.", string.Concat(finalEvents.Select(item => item.Text)));
     }
 
+    [Fact]
+    public async Task ReadsConfiguredGeminiModelForEachRequest()
+    {
+        var handler = new CapturingHandler(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"ok\"}]}}]}\n\n", Encoding.UTF8, "text/event-stream")
+        });
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://example.test/") };
+        var provider = new GeminiProvider(http, new FakeSecretStore("key"), preferences: new FakePreferences("account-model"));
+        await foreach (var _ in provider.StreamAsync(new ChatRequest([], "Hi", JarvisMode.Personal))) { }
+        Assert.Equal("v1beta/models/account-model:streamGenerateContent?alt=sse", handler.RequestUri?.PathAndQuery.TrimStart('/'));
+    }
+
     private sealed class CapturingHandler(HttpResponseMessage response) : HttpMessageHandler
     {
         public Uri? RequestUri { get; private set; }
@@ -99,5 +112,11 @@ public sealed class GeminiProviderTests
         public Task<string?> GetAsync(string name, CancellationToken cancellationToken = default) => Task.FromResult<string?>(value);
         public Task SetAsync(string name, string value, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task DeleteAsync(string name, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class FakePreferences(string model) : IUserPreferencesStore
+    {
+        public Task<UserPreferences> GetAsync(CancellationToken cancellationToken = default) => Task.FromResult(new UserPreferences("Ctrl+Shift+F12", false, GeminiModel: model));
+        public Task SaveAsync(UserPreferences preferences, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

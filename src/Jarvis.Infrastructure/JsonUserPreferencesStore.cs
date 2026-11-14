@@ -21,6 +21,9 @@ public sealed class JsonUserPreferencesStore(string filePath) : IUserPreferences
         ArgumentNullException.ThrowIfNull(preferences);
         if (string.IsNullOrWhiteSpace(preferences.GlobalShortcut) || preferences.GlobalShortcut.Length > 50)
             throw new ArgumentException("Enter a global shortcut between 1 and 50 characters.", nameof(preferences));
+        var model = string.IsNullOrWhiteSpace(preferences.GeminiModel) ? UserPreferences.Default.GeminiModel : preferences.GeminiModel.Trim();
+        if (model.Length > 100 || !System.Text.RegularExpressions.Regex.IsMatch(model, "^[A-Za-z0-9][A-Za-z0-9._-]*$", System.Text.RegularExpressions.RegexOptions.CultureInvariant))
+            throw new ArgumentException("Enter a valid Gemini model ID using letters, numbers, dots, underscores, or hyphens.", nameof(preferences));
         var workspace = string.IsNullOrWhiteSpace(preferences.ProjectWorkspacePath)
             ? null
             : Path.GetFullPath(preferences.ProjectWorkspacePath.Trim());
@@ -34,7 +37,8 @@ public sealed class JsonUserPreferencesStore(string filePath) : IUserPreferences
                 await JsonSerializer.SerializeAsync(stream, preferences with
                 {
                     GlobalShortcut = preferences.GlobalShortcut.Trim(),
-                    ProjectWorkspacePath = workspace
+                    ProjectWorkspacePath = workspace,
+                    GeminiModel = model
                 }, Options, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             File.Move(temporaryPath, _filePath, overwrite: true);

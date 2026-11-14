@@ -36,7 +36,9 @@ public partial class App : Application
                 services.AddSingleton<IReminderStore>(_ => new SqliteReminderStore(Path.Combine(appData, "jarvis.db")));
                 services.AddSingleton<IMemoryStore>(_ => new SqliteMemoryStore(Path.Combine(appData, "jarvis.db")));
                 services.AddSingleton(new HttpClient { BaseAddress = new Uri("https://generativelanguage.googleapis.com/"), Timeout = TimeSpan.FromSeconds(45) });
-                services.AddSingleton<IAiProvider>(sp => new GeminiProvider(sp.GetRequiredService<HttpClient>(), sp.GetRequiredService<ISecretStore>()));
+                services.AddSingleton<IAiProvider>(sp => new GeminiProvider(
+                    sp.GetRequiredService<HttpClient>(), sp.GetRequiredService<ISecretStore>(),
+                    preferences: sp.GetRequiredService<IUserPreferencesStore>()));
                 services.AddSingleton<IActionApproval, MessageBoxActionApproval>();
                 services.AddSingleton<DesktopFileSystem>();
                 services.AddSingleton<ISystemInfoProvider, WindowsSystemInfo>();
