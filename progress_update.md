@@ -7,7 +7,7 @@ Last updated: 2026-11-14
 - Public repository: `sharveshraam/Jarvis-Desktop`
 - Working branch: `feature/jarvis-desktop`
 - Lumi and the original repositories remain separate and untouched.
-- Latest feature commit: `760f4fe feat: add consent-gated local text file tools`.
+- Latest feature commit: `00306d6 feat: open approved local documents`.
 - Progress log is maintained alongside each implementation increment on this branch.
 - Previous milestone: `d6fa3e3 feat: add persistent background project tasks`.
 
@@ -38,7 +38,7 @@ Last updated: 2026-11-14
 
 - Added an approval-gated workflow to open a unique supported local document with its default Windows application.
 - It is constrained to Desktop, Documents, and Downloads; asks before opening; and refuses ambiguous results, unsupported file types, links, or a file changed after confirmation.
-- Verification: 70 tests pass and the full Release build has 0 warnings and 0 errors. This increment is being prepared for push.
+- Verification: 70 tests pass and the full Release build has 0 warnings and 0 errors. This increment is pushed.
 
 ## Remaining work from the master build prompt
 
@@ -109,4 +109,5 @@ Append a dated entry here whenever a meaningful project increment is completed. 
 - Added local `open file containing …` and a Gemini `open_user_file` tool for uniquely matching PDF, Office, text, and common image documents; Windows opens them with their default associated application.
 - Requires confirmation showing the path, size, and modified time. Refuses ambiguous results, unsupported types (including executables), files outside Desktop/Documents/Downloads, reparse points, and files changed after confirmation.
 - Added tests for approved open, declined open, ambiguous matches, and unsupported executable rejection. Verification: **70 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
-- The preceding file-tools code and documentation runs [both succeeded](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43604364087). This increment is ready to push.
+- The preceding file-tools code and documentation runs [both succeeded](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43604364087).
+- Pushed as `00306d6 feat: open approved local documents` to `origin/feature/jarvis-desktop`.
