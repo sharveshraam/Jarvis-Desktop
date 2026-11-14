@@ -5,6 +5,7 @@ using Jarvis.Core;
 using Jarvis.Desktop.ViewModels;
 using Jarvis.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 
 namespace Jarvis.Desktop;
 
@@ -15,6 +16,13 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         viewModel.Messages.CollectionChanged += (_, _) => ChatScroll.ScrollToEnd();
+    }
+
+    private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (Application.Current is App { IsExiting: true }) return;
+        e.Cancel = true;
+        Hide();
     }
 
     private void Input_KeyDown(object sender, KeyEventArgs e)

@@ -13,6 +13,7 @@
 | Capability | Status |
 |---|---|
 | WPF app shell and chat | Working foundation; modes and cancel are wired |
+| System tray | Implemented: close hides the window, tray double-click/menu reopens, explicit Quit exits |
 | Gemini provider and protected key | Streaming provider implemented; no live API test because no key was configured |
 | Local conversation persistence | SQLite history tested |
 | Gemini key protection | Windows current-user DPAPI round-trip tested |
@@ -21,7 +22,7 @@
 | Desktop text files | Approval-gated new .txt/.md creation; no overwrite; bounded text read for selected formats; traversal blocked; tests cover approve, decline, and read |
 | System information | RAM usage read directly from Windows; local routing covered by a deterministic test |
 | File discovery | Bounded local recursive PDF search across Desktop, Documents, and Downloads; skips junctions and reports when the search cap is reached |
-| Tray, startup, global shortcut | Planned |
+| Startup and global shortcut | Planned |
 | Speech recognition and TTS | Not implemented; no benchmark claimed |
 | Reminders, memory, background tasks | Planned |
 | Windows build workflow | Added; portable ZIP artifact |
@@ -37,4 +38,4 @@
 
 ## Release notes
 
-The current build is an early development milestone, not a complete release. File support currently covers Desktop folder creation, creating new .txt/.md files with approval, reading bounded text files, and locating the latest PDF across standard user folders. It still needs broader file tools, tray/shortcut support, voice pipeline and evaluation, reminders/memory, richer workflows, broader failure tests, and an installer before release claims are appropriate.
+The current build is an early development milestone, not a complete release. File support currently covers Desktop folder creation, creating new .txt/.md files with approval, reading bounded text files, and locating the latest PDF across standard user folders. It still needs broader file tools, startup/global shortcut support, voice pipeline and evaluation, reminders/memory, richer workflows, broader failure tests, and an installer before release claims are appropriate.

@@ -5,7 +5,7 @@
         xmlns:local="clr-namespace:Jarvis.Desktop"
         Title="JARVIS" Width="520" Height="720" MinWidth="420" MinHeight="540"
         WindowStartupLocation="CenterScreen" Background="#11151B" Foreground="{StaticResource TextBrush}"
-        FontFamily="Segoe UI" FontSize="14">
+        FontFamily="Segoe UI" FontSize="14" Closing="Window_Closing">
   <Window.Resources>
     <local:MessageBrushConverter x:Key="MessageBrushConverter" />
     <local:MessageAlignmentConverter x:Key="MessageAlignmentConverter" />

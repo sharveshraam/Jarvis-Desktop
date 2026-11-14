@@ -1,7 +1,7 @@
 <Application x:Class="Jarvis.Desktop.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             ShutdownMode="OnMainWindowClose">
+             ShutdownMode="OnExplicitShutdown">
   <Application.Resources>
     <SolidColorBrush x:Key="PanelBrush" Color="#171B22" />
     <SolidColorBrush x:Key="SurfaceBrush" Color="#202631" />
