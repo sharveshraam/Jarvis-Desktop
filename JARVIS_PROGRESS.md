@@ -17,7 +17,7 @@
 | Local conversation persistence | SQLite history tested |
 | Gemini key protection | Windows current-user DPAPI round-trip tested |
 | Safe local command fast path | Time/date, arithmetic, and an allowlisted app launcher; tested |
-| Permission prompts for file changes | Not implemented yet |
+| Permission prompts for file changes | Desktop folder creation asks before writing; path is restricted to one folder directly on Desktop; overwrite and traversal blocked; tested |
 | Tray, startup, global shortcut | Planned |
 | Speech recognition and TTS | Not implemented; no benchmark claimed |
 | Reminders, memory, background tasks | Planned |
@@ -27,11 +27,11 @@
 ## Verification completed
 
 - .NET 10.0.404 Release solution build: 0 warnings, 0 errors.
-- Automated tests: 7 passed, 0 failed (fast-path routing, SQLite history, DPAPI secret round-trip).
+- Automated tests: 10 passed, 0 failed (fast-path routing, approved/canceled/rejected Desktop folder creation, SQLite history, DPAPI secret round-trip).
 - Published and opened a self-contained `win-x64` single-file build.
 - Live UI smoke check: `calculate 17 * 23` returned `391` with the `Completed locally` status.
 - Gemini network streaming was not tested against a real account because no API key was configured.
 
 ## Release notes
 
-The current build is an early development milestone, not a complete release. It still needs the permission-gated file tools, tray/shortcut support, voice pipeline and evaluation, reminders/memory, broader failure tests, and an installer before release claims are appropriate.
+The current build is an early development milestone, not a complete release. Desktop folder creation is the first permission-gated file action. It still needs broader file tools, tray/shortcut support, voice pipeline and evaluation, reminders/memory, richer workflows, broader failure tests, and an installer before release claims are appropriate.

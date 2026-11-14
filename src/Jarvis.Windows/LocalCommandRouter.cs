@@ -9,6 +9,15 @@ public sealed record LocalCommandResult(bool Handled, string? Response = null);
 
 public sealed partial class LocalCommandRouter
 {
+    private readonly IActionApproval? _approval;
+    private readonly DesktopFileSystem? _files;
+
+    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null)
+    {
+        _approval = approval;
+        _files = files;
+    }
+
     private static readonly IReadOnlyDictionary<string, string> Applications = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["notepad"] = "notepad.exe",
@@ -23,6 +32,21 @@ public sealed partial class LocalCommandRouter
     {
         var normalized = text.Trim();
         var now = DateTimeOffset.Now;
+        var folder = CreateFolderPattern().Match(normalized);
+        if (folder.Success)
+        {
+            var name = folder.Groups[1].Value.Trim().Trim('"', '\'');
+            if (_approval is null || _files is null)
+                return new(true, "Desktop folder creation is unavailable in this session.");
+            string target;
+            try { target = _files.GetDesktopFolderPath(name); }
+            catch (ArgumentException ex) { return new(true, ex.Message); }
+            var approved = await _approval.ConfirmAsync("Create a Desktop folder?", target, cancellationToken);
+            if (!approved) return new(true, "Canceled. No folder was created.");
+            try { return new(true, await _files.CreateDesktopFolderAsync(name, cancellationToken)); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            { return new(true, $"Could not create the folder: {ex.Message}"); }
+        }
         if (Regex.IsMatch(normalized, @"^(what(?:'s| is) the )?time\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
             return new(true, $"It is {now.ToString("h:mm tt", CultureInfo.CurrentCulture)}.");
         if (Regex.IsMatch(normalized, @"^(what(?:'s| is) the )?date\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
@@ -80,6 +104,9 @@ public sealed partial class LocalCommandRouter
 
     [GeneratedRegex(@"^(?:open|launch|start)\s+(.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex LaunchPattern();
+
+    [GeneratedRegex("^create\\s+(?:a\\s+)?folder\\s+(?:called|named)\\s+(.+?)\\s+(?:on|at)\\s+(?:my\\s+)?desktop[.!]?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex CreateFolderPattern();
 
     [GeneratedRegex(@"^(?:calculate|what is)\s+(.+?)\s*\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CalculationPattern();

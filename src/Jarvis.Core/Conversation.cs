@@ -28,3 +28,8 @@ public interface ISecretStore
     Task SetAsync(string name, string value, CancellationToken cancellationToken = default);
     Task DeleteAsync(string name, CancellationToken cancellationToken = default);
 }
+
+public interface IActionApproval
+{
+    Task<bool> ConfirmAsync(string title, string details, CancellationToken cancellationToken = default);
+}

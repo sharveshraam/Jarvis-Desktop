@@ -25,6 +25,8 @@ public partial class App : Application
                 services.AddSingleton<ISecretStore>(_ => new DpapiSecretStore(Path.Combine(appData, "secrets")));
                 services.AddSingleton(new HttpClient { BaseAddress = new Uri("https://generativelanguage.googleapis.com/"), Timeout = TimeSpan.FromSeconds(45) });
                 services.AddSingleton<IAiProvider>(sp => new GeminiProvider(sp.GetRequiredService<HttpClient>(), sp.GetRequiredService<ISecretStore>()));
+                services.AddSingleton<IActionApproval, MessageBoxActionApproval>();
+                services.AddSingleton<DesktopFileSystem>();
                 services.AddSingleton<LocalCommandRouter>();
                 services.AddSingleton<ChatViewModel>();
                 services.AddSingleton<MainWindow>();
