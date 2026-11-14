@@ -15,7 +15,7 @@
         <TextBox x:Name="ProfileContextBox" Height="145" MaxLength="4000" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#222A34" Foreground="#F2F5F8" BorderBrush="#35404D" Padding="8"/>
         <TextBlock Text="Treat this as editable guidance; remove anything you do not want included in cloud chats." FontSize="11" Foreground="#82909F" Margin="0,5,0,18"/>
         <TextBlock Text="Global shortcut" Margin="0,0,0,5"/>
-        <TextBox x:Name="GlobalShortcutBox" MaxLength="50" Background="#222A34" Foreground="#F2F5F8" BorderBrush="#35404D" Padding="8" ToolTip="Example: Ctrl+Alt+J"/>
+        <TextBox x:Name="GlobalShortcutBox" MaxLength="50" Background="#222A34" Foreground="#F2F5F8" BorderBrush="#35404D" Padding="8" ToolTip="Example: Ctrl+Shift+F12"/>
         <CheckBox x:Name="RunAtStartupCheckBox" Content="Run JARVIS when I sign in to Windows" Margin="0,10,0,18" Foreground="#F2F5F8"/>
         <Separator Background="#35404D" Margin="0,0,0,16"/>
         <TextBlock Text="Gemini connection" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,10"/>

@@ -14,7 +14,7 @@
 |---|---|
 | WPF app shell and chat | Working foundation; modes and cancel are wired |
 | System tray | Implemented: close hides the window, tray double-click/menu reopens, explicit Quit exits |
-| Startup and global shortcut | Settings include optional Windows sign-in launch and configurable Ctrl+Alt+J-style global key chord; hotkey collision reported |
+| Startup and global shortcut | Settings include optional Windows sign-in launch and configurable global key chord; runtime smoke found Ctrl+Alt+J occupied, so default changed to Ctrl+Shift+F12 for verification |
 | Gemini provider and protected key | Streaming provider implemented; no live API test because no key was configured |
 | Editable profile | Local JSON profile with user-editable name and context; included in Gemini system instruction; Settings discloses cloud transfer |
 | Reminders | Relative minute/hour/day reminders persisted in SQLite, list command, and tray balloon notification polling; due records are marked delivered |

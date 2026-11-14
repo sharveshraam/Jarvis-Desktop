@@ -23,7 +23,7 @@ public interface IUserProfileStore
 
 public sealed record UserPreferences(string GlobalShortcut, bool RunAtStartup)
 {
-    public static UserPreferences Default { get; } = new("Ctrl+Alt+J", false);
+    public static UserPreferences Default { get; } = new("Ctrl+Shift+F12", false);
 }
 
 public interface IUserPreferencesStore
