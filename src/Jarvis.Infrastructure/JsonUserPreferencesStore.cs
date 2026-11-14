@@ -1,11 +1,16 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Jarvis.Core;
 
 namespace Jarvis.Infrastructure;
 
 public sealed class JsonUserPreferencesStore(string filePath) : IUserPreferencesStore
 {
-    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
     private readonly string _filePath = Path.GetFullPath(filePath);
 
     public async Task<UserPreferences> GetAsync(CancellationToken cancellationToken = default)
@@ -13,12 +18,15 @@ public sealed class JsonUserPreferencesStore(string filePath) : IUserPreferences
         if (!File.Exists(_filePath)) return UserPreferences.Default;
         await using var stream = File.OpenRead(_filePath);
         var preferences = await JsonSerializer.DeserializeAsync<UserPreferences>(stream, Options, cancellationToken);
-        return preferences ?? UserPreferences.Default;
+        preferences ??= UserPreferences.Default;
+        return Enum.IsDefined(preferences.SelectedMode) ? preferences : preferences with { SelectedMode = JarvisMode.Personal };
     }
 
     public async Task SaveAsync(UserPreferences preferences, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(preferences);
+        if (!Enum.IsDefined(preferences.SelectedMode))
+            throw new ArgumentException("Choose a valid JARVIS working mode.", nameof(preferences));
         if (string.IsNullOrWhiteSpace(preferences.GlobalShortcut) || preferences.GlobalShortcut.Length > 50)
             throw new ArgumentException("Enter a global shortcut between 1 and 50 characters.", nameof(preferences));
         var model = string.IsNullOrWhiteSpace(preferences.GeminiModel) ? UserPreferences.Default.GeminiModel : preferences.GeminiModel.Trim();

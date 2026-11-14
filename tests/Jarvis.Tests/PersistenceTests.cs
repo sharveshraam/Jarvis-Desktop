@@ -172,4 +172,53 @@ public sealed class PersistenceTests
             }
         }
     }
+
+    [Fact]
+    public async Task UserPreferencesPersistSelectedWorkingModeAsReadableText()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"jarvis-prefs-test-{Guid.NewGuid():N}");
+        try
+        {
+            var path = Path.Combine(directory, "preferences.json");
+            var store = new JsonUserPreferencesStore(path);
+            var selected = UserPreferences.Default with { SelectedMode = JarvisMode.Development };
+            await store.SaveAsync(selected);
+
+            Assert.Contains("\"selectedMode\": \"Development\"", await File.ReadAllTextAsync(path));
+            Assert.Equal(selected, await new JsonUserPreferencesStore(path).GetAsync());
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                foreach (var file in Directory.EnumerateFiles(directory)) File.Delete(file);
+                Directory.Delete(directory);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LegacyUserPreferencesDefaultToPersonalMode()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"jarvis-prefs-test-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var path = Path.Combine(directory, "preferences.json");
+            await File.WriteAllTextAsync(path, """{"globalShortcut":"Ctrl+Shift+F12","runAtStartup":false,"speakResponses":true}""");
+
+            var loaded = await new JsonUserPreferencesStore(path).GetAsync();
+
+            Assert.Equal(JarvisMode.Personal, loaded.SelectedMode);
+            Assert.True(loaded.SpeakResponses);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                foreach (var file in Directory.EnumerateFiles(directory)) File.Delete(file);
+                Directory.Delete(directory);
+            }
+        }
+    }
 }

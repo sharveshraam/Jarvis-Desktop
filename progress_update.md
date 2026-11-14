@@ -26,7 +26,7 @@ Last updated: 2026-11-14
 
 ## Verification completed
 
-- Latest verified test run: **60 passed, 0 failed**.
+- Latest verified test run: **62 passed, 0 failed**.
 - Latest verified full Release build: **0 warnings, 0 errors**.
 - GitHub Actions run [#18](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43601058115) for `64fd6b7` completed successfully, including Windows restore, Release build, tests, self-contained `win-x64` publish, ZIP packaging, and artifact upload.
 - Latest filename-search code run `a3603ae` [completed successfully](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43602640452); the follow-up docs run `ce74955` [also completed successfully](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43602669568).
@@ -36,9 +36,9 @@ Last updated: 2026-11-14
 
 ## Latest increment
 
-- Added mode-specific Gemini behavior guidance for Personal, Study, Development, Research, Focus, System, and Creator modes.
-- Each mode now changes the assistant's instructions; Research mode explicitly avoids implying live source verification without a browsing tool.
-- Verification: 60 tests pass and the full Release build has 0 warnings and 0 errors. This increment is currently being prepared for push.
+- Added mode-specific Gemini behavior guidance for Personal, Study, Development, Research, Focus, System, and Creator modes; the selected mode now persists across app restarts.
+- Research mode explicitly avoids implying live source verification without a browsing tool. New preferences store the mode as readable text; older settings files default to Personal.
+- Verification: 62 tests pass and the full Release build has 0 warnings and 0 errors. The persistence increment is being prepared for push.
 
 ## Remaining work from the master build prompt
 
@@ -88,3 +88,10 @@ Append a dated entry here whenever a meaningful project increment is completed. 
 - Implemented mode-specific response guidance for all seven working modes and added provider-level tests confirming the selected instructions are sent to Gemini.
 - Verification: **60 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
 - Pushed as `9d17fda feat: tailor responses to working modes` to `origin/feature/jarvis-desktop`.
+
+## 2026-11-14 increment — persist selected working mode
+
+- Added the selected JARVIS mode to local user preferences and load it at startup; changing modes saves the selection while preserving other settings.
+- Older preference files without a mode continue to load as Personal. Unknown numeric enum values fall back to Personal, and invalid mode values cannot be saved.
+- Added tests for readable mode persistence and legacy settings compatibility. Verification: **62 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
+- This increment is ready to push to `feature/jarvis-desktop`; publication status will be recorded after the push.

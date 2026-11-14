@@ -25,6 +25,9 @@ public sealed class ChatViewModel : INotifyPropertyChanged
     private string _input = string.Empty;
     private string _status = "Local commands ready";
     private JarvisMode _mode = JarvisMode.Personal;
+    private bool _loadingPreferences = true;
+    private bool _modeChangedDuringLoad;
+    private readonly SemaphoreSlim _preferenceWriteLock = new(1, 1);
     private bool _isBusy;
     private CancellationTokenSource? _activeRequest;
     private CancellationTokenSource? _speechRequest;
@@ -53,7 +56,16 @@ public sealed class ChatViewModel : INotifyPropertyChanged
 
     public string Input { get => _input; set { if (Set(ref _input, value)) ((AsyncRelayCommand)SendCommand).Refresh(); } }
     public string Status { get => _status; set => Set(ref _status, value); }
-    public JarvisMode Mode { get => _mode; set => Set(ref _mode, value); }
+    public JarvisMode Mode
+    {
+        get => _mode;
+        set
+        {
+            if (!Set(ref _mode, value)) return;
+            if (_loadingPreferences) _modeChangedDuringLoad = true;
+            else _ = PersistSelectedModeAsync();
+        }
+    }
     public bool IsBusy { get => _isBusy; private set { if (Set(ref _isBusy, value)) { ((AsyncRelayCommand)SendCommand).Refresh(); ((RelayCommand)CancelCommand).Refresh(); } } }
 
     public async Task SendAsync()
@@ -257,10 +269,32 @@ public sealed class ChatViewModel : INotifyPropertyChanged
     {
         try
         {
+            var preferences = await _preferencesStore.GetAsync();
+            if (!_modeChangedDuringLoad)
+                Set(ref _mode, Enum.IsDefined(preferences.SelectedMode) ? preferences.SelectedMode : JarvisMode.Personal, nameof(Mode));
+            _loadingPreferences = false;
+            if (_modeChangedDuringLoad) await PersistSelectedModeAsync();
+
             var history = await _store.GetRecentAsync(100);
             await Application.Current.Dispatcher.InvokeAsync(() => { foreach (var message in history) Messages.Add(message); });
         }
-        catch (Exception ex) { Status = $"History unavailable: {ex.Message}"; }
+        catch (Exception ex)
+        {
+            _loadingPreferences = false;
+            Status = $"History or preferences unavailable: {ex.Message}";
+        }
+    }
+
+    private async Task PersistSelectedModeAsync()
+    {
+        await _preferenceWriteLock.WaitAsync();
+        try
+        {
+            var preferences = await _preferencesStore.GetAsync();
+            await _preferencesStore.SaveAsync(preferences with { SelectedMode = Mode });
+        }
+        catch (Exception ex) { Status = $"Mode could not be saved: {ex.Message}"; }
+        finally { _preferenceWriteLock.Release(); }
     }
 
     private static ChatMessage NewMessage(ChatRole role, string text) => new(Guid.NewGuid().ToString("N"), role, text, DateTimeOffset.Now);
