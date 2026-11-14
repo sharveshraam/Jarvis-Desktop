@@ -92,6 +92,28 @@ public sealed class GeminiProviderTests
         Assert.Equal("v1beta/models/account-model:streamGenerateContent?alt=sse", handler.RequestUri?.PathAndQuery.TrimStart('/'));
     }
 
+    [Theory]
+    [InlineData(JarvisMode.Personal, "day-to-day assistant")]
+    [InlineData(JarvisMode.Study, "teach for understanding")]
+    [InlineData(JarvisMode.Development, "software engineering partner")]
+    [InlineData(JarvisMode.Research, "verified facts from inference")]
+    [InlineData(JarvisMode.Focus, "one next action")]
+    [InlineData(JarvisMode.System, "local Windows status")]
+    [InlineData(JarvisMode.Creator, "multiple creative directions")]
+    public async Task SendsBehaviorGuidanceForSelectedMode(JarvisMode mode, string expectedGuidance)
+    {
+        var handler = new CapturingHandler(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"ok\"}]}}]}\n\n", Encoding.UTF8, "text/event-stream")
+        });
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://example.test/") };
+        var provider = new GeminiProvider(http, new FakeSecretStore("key"), "test-model");
+
+        await foreach (var _ in provider.StreamAsync(new ChatRequest([], "Help me", mode))) { }
+
+        Assert.Contains(expectedGuidance, handler.RequestBody, StringComparison.OrdinalIgnoreCase);
+    }
+
     private sealed class CapturingHandler(HttpResponseMessage response) : HttpMessageHandler
     {
         public Uri? RequestUri { get; private set; }

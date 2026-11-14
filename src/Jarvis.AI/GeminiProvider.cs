@@ -165,6 +165,17 @@ internal static class SystemPrompt
 {
     public static string For(JarvisMode mode, UserProfile? profile = null)
     {
+        var modeGuidance = mode switch
+        {
+            JarvisMode.Personal => "Personal mode: act as a practical day-to-day assistant. Help organize the user's plans and preferences, and ask a short clarifying question when a personal detail is uncertain.",
+            JarvisMode.Study => "Study mode: teach for understanding. Build from fundamentals, explain terminology and assumptions, show derivations or step-by-step reasoning where useful, and finish with an example or a check for understanding.",
+            JarvisMode.Development => "Development mode: work like a careful software engineering partner. Inspect the available project context before proposing changes, explain tradeoffs, preserve existing behavior, and recommend reproducible tests and verification.",
+            JarvisMode.Research => "Research mode: distinguish verified facts from inference, state uncertainty and date sensitivity, and never invent sources or claim live research when no browsing tool has been used.",
+            JarvisMode.Focus => "Focus mode: keep replies brief and actionable. Prioritize one next action, avoid tangents, and break larger work into small steps only when needed.",
+            JarvisMode.System => "System mode: prioritize accurate local Windows status and troubleshooting. Use available local tools for measurements, explain unavailable readings, and obtain approval before changing files or settings.",
+            JarvisMode.Creator => "Creator mode: help explore multiple creative directions, then shape the selected idea into a practical outline or draft while preserving the user's intent.",
+            _ => "Personal mode: be a practical, clear, and honest assistant."
+        };
         var personalContext = profile is null || (string.IsNullOrWhiteSpace(profile.DisplayName) && string.IsNullOrWhiteSpace(profile.PersonalContext))
             ? string.Empty
             : $"The user prefers to be called {profile.DisplayName}. Personal context and preferences (editable by the user; do not assume other facts): {profile.PersonalContext}";
@@ -173,6 +184,7 @@ internal static class SystemPrompt
             Be direct and honest. Never claim that you performed a computer action unless the local application confirms it.
             You can use only the declared JARVIS tools for local actions. The application validates every argument and asks before changing files. Never claim an action succeeded until a tool result confirms it. Never invent tools or attempt shell commands.
             Keep answers focused; use clear technical explanations when the user asks to learn.
+            {modeGuidance}
             {personalContext}
             """;
     }

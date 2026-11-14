@@ -26,19 +26,19 @@ Last updated: 2026-11-14
 
 ## Verification completed
 
-- Latest verified test run: **53 passed, 0 failed**.
+- Latest verified test run: **60 passed, 0 failed**.
 - Latest verified full Release build: **0 warnings, 0 errors**.
 - GitHub Actions run [#18](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43601058115) for `64fd6b7` completed successfully, including Windows restore, Release build, tests, self-contained `win-x64` publish, ZIP packaging, and artifact upload.
-- Latest confirmed GitHub Actions run for code commit `75579df` [completed successfully](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43602319296); the subsequent docs-only run for `4d2182c` also [completed successfully](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43602341632).
+- Latest filename-search code run `a3603ae` [completed successfully](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43602640452); the follow-up docs run `ce74955` [also completed successfully](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43602669568).
 - Live Gemini request was not sent: the current Windows-user key store has no API key configured.
 - Live UI input could not be completed: JARVIS's window was present in the app inventory, but its captured screen was black and Windows rejected interaction while locked.
 - No final signed release installer has been produced. GitHub Actions has built and uploaded a self-contained development ZIP artifact; the full requested project is still in progress.
 
 ## Latest increment
 
-- Added bounded local filename search across Desktop, Documents, and Downloads; displays matching paths newest first and clearly indicates when search limits were reached.
-- Skips reparse-point entries, validates search text as a filename fragment rather than a path or wildcard, and caps results and directory traversal.
-- Verification: 53 tests pass and the full Release build has 0 warnings and 0 errors. This increment is currently being prepared for push.
+- Added mode-specific Gemini behavior guidance for Personal, Study, Development, Research, Focus, System, and Creator modes.
+- Each mode now changes the assistant's instructions; Research mode explicitly avoids implying live source verification without a browsing tool.
+- Verification: 60 tests pass and the full Release build has 0 warnings and 0 errors. This increment is currently being prepared for push.
 
 ## Remaining work from the master build prompt
 
@@ -81,4 +81,10 @@ Append a dated entry here whenever a meaningful project increment is completed. 
 - Added local partial-name search for files in Desktop, Documents, and Downloads, with newest-first results and full file paths.
 - Search skips reparse points, rejects path/wildcard input, limits traversal to 4,000 directories and results to 10, and reports when those bounds truncate results.
 - Verification: **53 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
-- Pushed as `a3603ae feat: add bounded local filename search` to `origin/feature/jarvis-desktop`. The preceding GitHub Actions runs for `75579df` and `4d2182c` were both successful.
+- Pushed as `a3603ae feat: add bounded local filename search` to `origin/feature/jarvis-desktop`. GitHub Actions run [#21](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43602640452) and docs run [#22](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43602669568) both completed successfully.
+
+## 2026-11-14 increment — working mode behavior
+
+- Implemented mode-specific response guidance for all seven working modes and added provider-level tests confirming the selected instructions are sent to Gemini.
+- Verification: **60 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
+- This increment is ready to push to `feature/jarvis-desktop`; publication status will be recorded after the push.
