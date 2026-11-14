@@ -7,7 +7,7 @@ Last updated: 2026-11-14
 - Public repository: `sharveshraam/Jarvis-Desktop`
 - Working branch: `feature/jarvis-desktop`
 - Lumi and the original repositories remain separate and untouched.
-- Latest feature commit: `45dadeb feat: report busiest GPU engine utilization`.
+- Latest feature commit: `75579df feat: add persistent reminder cancellation`.
 - Progress log is maintained alongside each implementation increment on this branch.
 - Previous milestone: `d6fa3e3 feat: add persistent background project tasks`.
 
@@ -80,4 +80,4 @@ Append a dated entry here whenever a meaningful project increment is completed. 
 - Added persistent cancellation for upcoming reminders by short ID or exact title; reminder listings now include a stable short ID, and ambiguous titles ask the user to choose by ID.
 - Canceled reminders are filtered out of upcoming and due notifications. Existing databases are migrated in place by adding a `canceled` column without dropping or rewriting saved reminders.
 - Added coverage for cancellation, due-list suppression, ambiguous title handling, ID listing, and migration from the existing schema. Verification: **51 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
-- This increment is ready to push to `feature/jarvis-desktop`; publication status will be recorded after the push.
+- Pushed as `75579df feat: add persistent reminder cancellation` to `origin/feature/jarvis-desktop`.
