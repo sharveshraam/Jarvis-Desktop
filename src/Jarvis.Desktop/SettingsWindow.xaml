@@ -18,6 +18,12 @@
         <TextBox x:Name="GlobalShortcutBox" MaxLength="50" Background="#222A34" Foreground="#F2F5F8" BorderBrush="#35404D" Padding="8" ToolTip="Example: Ctrl+Shift+F12"/>
         <CheckBox x:Name="RunAtStartupCheckBox" Content="Run JARVIS when I sign in to Windows" Margin="0,10,0,18" Foreground="#F2F5F8"/>
         <CheckBox x:Name="SpeakResponsesCheckBox" Content="Read JARVIS responses aloud" Margin="0,0,0,18" Foreground="#F2F5F8"/>
+        <TextBlock Text="Project workspace" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
+        <TextBlock Text="Choose a project folder before asking JARVIS to inspect or edit its code. Reading code for a cloud answer requires approval." TextWrapping="Wrap" FontSize="11" Foreground="#82909F" Margin="0,0,0,8"/>
+        <DockPanel Margin="0,0,0,18">
+          <Button Content="Browse…" Click="BrowseWorkspace_Click" DockPanel.Dock="Right" Padding="12,6" Margin="8,0,0,0" Background="#252E39" Foreground="#E5E9EF" BorderThickness="0"/>
+          <TextBox x:Name="WorkspacePathBox" Background="#222A34" Foreground="#F2F5F8" BorderBrush="#35404D" Padding="8"/>
+        </DockPanel>
         <Separator Background="#35404D" Margin="0,0,0,16"/>
         <TextBlock Text="Gemini connection" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,10"/>
         <TextBlock Text="API key" Margin="0,0,0,6"/>

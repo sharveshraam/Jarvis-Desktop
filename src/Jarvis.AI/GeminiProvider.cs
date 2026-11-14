@@ -145,6 +145,10 @@ public sealed class GeminiProvider(HttpClient http, ISecretStore secrets, string
           {"name":"read_desktop_text_file","description":"Read a supported text file up to 1 MB directly on the Desktop.","parameters":{"type":"OBJECT","properties":{"name":{"type":"STRING","description":"File name, not a path."}},"required":["name"]}},
           {"name":"create_reminder","description":"Create a local reminder in the next year.","parameters":{"type":"OBJECT","properties":{"amount":{"type":"INTEGER","description":"Positive delay amount."},"unit":{"type":"STRING","enum":["minutes","hours","days"]},"title":{"type":"STRING","description":"Reminder text up to 160 characters."}},"required":["amount","unit","title"]}},
           {"name":"list_reminders","description":"List upcoming local reminders.","parameters":{"type":"OBJECT","properties":{}}}
+          ,{"name":"list_project_files","description":"List source files in the configured project workspace. Ask before sharing names with Gemini.","parameters":{"type":"OBJECT","properties":{}}}
+          ,{"name":"search_project_code","description":"Search source code in the configured project workspace. Ask before sharing matching snippets with Gemini.","parameters":{"type":"OBJECT","properties":{"query":{"type":"STRING"}},"required":["query"]}}
+          ,{"name":"read_project_file","description":"Read a supported source file from the configured workspace after explicit user approval to send its contents to Gemini.","parameters":{"type":"OBJECT","properties":{"path":{"type":"STRING"}},"required":["path"]}}
+          ,{"name":"write_project_file","description":"Create or replace a source file inside the configured workspace. Always show the change preview and ask for approval.","parameters":{"type":"OBJECT","properties":{"path":{"type":"STRING"},"content":{"type":"STRING"}},"required":["path","content"]}}
         ]
         """);
 

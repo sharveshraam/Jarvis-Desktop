@@ -21,12 +21,21 @@ public sealed class JsonUserPreferencesStore(string filePath) : IUserPreferences
         ArgumentNullException.ThrowIfNull(preferences);
         if (string.IsNullOrWhiteSpace(preferences.GlobalShortcut) || preferences.GlobalShortcut.Length > 50)
             throw new ArgumentException("Enter a global shortcut between 1 and 50 characters.", nameof(preferences));
+        var workspace = string.IsNullOrWhiteSpace(preferences.ProjectWorkspacePath)
+            ? null
+            : Path.GetFullPath(preferences.ProjectWorkspacePath.Trim());
+        if (workspace is not null && !Directory.Exists(workspace))
+            throw new ArgumentException("Choose an existing project folder for the workspace.", nameof(preferences));
         Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
         var temporaryPath = $"{_filePath}.{Guid.NewGuid():N}.tmp";
         try
         {
             await using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, useAsync: true))
-                await JsonSerializer.SerializeAsync(stream, preferences with { GlobalShortcut = preferences.GlobalShortcut.Trim() }, Options, cancellationToken);
+                await JsonSerializer.SerializeAsync(stream, preferences with
+                {
+                    GlobalShortcut = preferences.GlobalShortcut.Trim(),
+                    ProjectWorkspacePath = workspace
+                }, Options, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             File.Move(temporaryPath, _filePath, overwrite: true);
         }

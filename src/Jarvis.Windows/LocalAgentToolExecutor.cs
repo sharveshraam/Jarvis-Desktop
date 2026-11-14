@@ -3,7 +3,7 @@ using Jarvis.Core;
 
 namespace Jarvis.Windows;
 
-public sealed class LocalAgentToolExecutor(LocalCommandRouter router, IActionApproval? approval = null, DesktopFileSystem? files = null) : IAgentToolExecutor
+public sealed class LocalAgentToolExecutor(LocalCommandRouter router, IActionApproval? approval = null, DesktopFileSystem? files = null, ProjectWorkspaceTools? workspace = null) : IAgentToolExecutor
 {
     public async Task<JsonElement> ExecuteAsync(AiFunctionCall call, CancellationToken cancellationToken = default)
     {
@@ -11,6 +11,20 @@ public sealed class LocalAgentToolExecutor(LocalCommandRouter router, IActionApp
         {
             if (call.Arguments.ValueKind != JsonValueKind.Object)
                 return Result(false, "Tool arguments must be a JSON object.");
+
+            if (call.Name is "list_project_files" or "search_project_code" or "read_project_file" or "write_project_file")
+            {
+                if (workspace is null) return Result(false, "Choose a project workspace in Settings first.");
+                var response = call.Name switch
+                {
+                    "list_project_files" => await workspace.ListFilesAsync(cancellationToken),
+                    "search_project_code" => await workspace.SearchAsync(RequiredString(call.Arguments, "query"), cancellationToken),
+                    "read_project_file" => await workspace.ReadAsync(RequiredString(call.Arguments, "path"), cancellationToken),
+                    "write_project_file" => await workspace.WriteAsync(RequiredString(call.Arguments, "path"), RequiredString(call.Arguments, "content"), cancellationToken),
+                    _ => "Unsupported project tool."
+                };
+                return Result(!response.StartsWith("Canceled", StringComparison.Ordinal), response);
+            }
 
             var result = call.Name switch
             {

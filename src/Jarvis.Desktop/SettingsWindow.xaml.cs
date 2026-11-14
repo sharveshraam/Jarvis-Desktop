@@ -32,6 +32,7 @@ public partial class SettingsWindow : Window
                 GlobalShortcutBox.Text = preferences.GlobalShortcut;
                 RunAtStartupCheckBox.IsChecked = preferences.RunAtStartup;
                 SpeakResponsesCheckBox.IsChecked = preferences.SpeakResponses;
+                WorkspacePathBox.Text = preferences.ProjectWorkspacePath ?? string.Empty;
             }
             catch (Exception ex) { MessageBox.Show(this, ex.Message, "Could not read saved key", MessageBoxButton.OK, MessageBoxImage.Warning); }
         };
@@ -41,8 +42,14 @@ public partial class SettingsWindow : Window
     {
         NewApiKey = string.IsNullOrWhiteSpace(ApiKeyBox.Password) ? null : ApiKeyBox.Password.Trim();
         NewProfile = new UserProfile(ProfileNameBox.Text, ProfileContextBox.Text);
-        NewPreferences = new UserPreferences(GlobalShortcutBox.Text, RunAtStartupCheckBox.IsChecked == true, SpeakResponsesCheckBox.IsChecked == true);
+        NewPreferences = new UserPreferences(GlobalShortcutBox.Text, RunAtStartupCheckBox.IsChecked == true, SpeakResponsesCheckBox.IsChecked == true, WorkspacePathBox.Text);
         DialogResult = true;
+    }
+
+    private void BrowseWorkspace_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Choose the project workspace", Multiselect = false };
+        if (dialog.ShowDialog(this) == true) WorkspacePathBox.Text = dialog.FolderName;
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;
