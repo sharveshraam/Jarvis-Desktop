@@ -34,6 +34,7 @@ public partial class App : Application
                 services.AddSingleton<ISpeechInputService, WindowsSpeechInputService>();
                 services.AddSingleton<ISpeechOutputService, WindowsSpeechOutputService>();
                 services.AddSingleton<IReminderStore>(_ => new SqliteReminderStore(Path.Combine(appData, "jarvis.db")));
+                services.AddSingleton<IMemoryStore>(_ => new SqliteMemoryStore(Path.Combine(appData, "jarvis.db")));
                 services.AddSingleton(new HttpClient { BaseAddress = new Uri("https://generativelanguage.googleapis.com/"), Timeout = TimeSpan.FromSeconds(45) });
                 services.AddSingleton<IAiProvider>(sp => new GeminiProvider(sp.GetRequiredService<HttpClient>(), sp.GetRequiredService<ISecretStore>()));
                 services.AddSingleton<IActionApproval, MessageBoxActionApproval>();
@@ -61,6 +62,7 @@ public partial class App : Application
             await _host.StartAsync();
             await _host.Services.GetRequiredService<IConversationStore>().InitializeAsync();
             await _host.Services.GetRequiredService<IReminderStore>().InitializeAsync();
+            await _host.Services.GetRequiredService<IMemoryStore>().InitializeAsync();
             var window = _host.Services.GetRequiredService<MainWindow>();
             MainWindow = window;
             InitializeTray(window);

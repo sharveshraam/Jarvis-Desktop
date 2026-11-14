@@ -18,6 +18,7 @@
 | Gemini provider and protected key | Streaming provider, function declarations, structured tool-call parsing, and protected key implemented; live API not tested because no key was configured |
 | Agent execution | Bounded to three model/tool rounds and six local calls per request; allowlisted tools validate arguments; file writes require approval and Gemini-requested file reads require explicit sharing approval |
 | Project workspace | User-selected workspace; bounded source listing/search/read and approve-before-write previews; traversal, reparse points, build output, dependency folders, and unsupported extensions are excluded; source disclosure requires approval |
+| Persistent memory | Explicit local `remember` command, list/search, and approval-gated forget; stored in SQLite with duplicate suppression; memory is not automatically attached to Gemini requests |
 | Editable profile | Local JSON profile with user-editable name and context; included in Gemini system instruction; Settings discloses cloud transfer |
 | Reminders | Relative minute/hour/day reminders persisted in SQLite, list command, and tray balloon notification polling; due records are marked delivered |
 | Local conversation persistence | SQLite history tested |
@@ -35,7 +36,7 @@
 ## Verification completed
 
 - .NET 10.0.404 Release solution build: 0 warnings, 0 errors.
-- Automated tests: 36 passed, 0 failed (previous coverage plus project path containment, excluded paths, read-consent denial, and approve-before-write preview).
+- Automated tests: 38 passed, 0 failed (previous coverage plus local memory persistence, duplicate suppression, search, and approval-gated deletion).
 - Latest full Release solution build: 0 warnings, 0 errors.
 - An earlier development milestone was published and opened as a self-contained `win-x64` single-file build; latest structured-tool and speech changes still need a fresh runtime smoke check.
 - Live UI smoke check: `calculate 17 * 23` returned `391` with the `Completed locally` status.

@@ -14,8 +14,9 @@ public sealed partial class LocalCommandRouter
     private readonly ILocalFileSearch? _fileSearch;
     private readonly IApplicationLauncher? _applicationLauncher;
     private readonly IReminderStore? _reminders;
+    private readonly IMemoryStore? _memory;
 
-    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null, ISystemInfoProvider? systemInfo = null, ILocalFileSearch? fileSearch = null, IApplicationLauncher? applicationLauncher = null, IReminderStore? reminders = null)
+    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null, ISystemInfoProvider? systemInfo = null, ILocalFileSearch? fileSearch = null, IApplicationLauncher? applicationLauncher = null, IReminderStore? reminders = null, IMemoryStore? memory = null)
     {
         _approval = approval;
         _files = files;
@@ -23,6 +24,7 @@ public sealed partial class LocalCommandRouter
         _fileSearch = fileSearch;
         _applicationLauncher = applicationLauncher;
         _reminders = reminders;
+        _memory = memory;
     }
 
     private static readonly IReadOnlyDictionary<string, string> Applications = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -43,6 +45,33 @@ public sealed partial class LocalCommandRouter
     {
         var normalized = text.Trim();
         var now = DateTimeOffset.Now;
+        var remember = Regex.Match(normalized, @"^remember(?:\s+that)?\s+(.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (remember.Success)
+        {
+            if (_memory is null) return new(true, "Local memory is unavailable.", false);
+            var content = remember.Groups[1].Value.Trim().TrimEnd('.', '!');
+            if (content.Length is 0 or > 2000) return new(true, "Memory text must be between 1 and 2,000 characters.", false);
+            await _memory.AddAsync(content, cancellationToken);
+            return new(true, "Saved to JARVIS memory on this computer.");
+        }
+        if (Regex.IsMatch(normalized, @"^(?:what do you remember(?: about me)?|show (?:my )?memories|list memories)\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            if (_memory is null) return new(true, "Local memory is unavailable.", false);
+            var memories = await _memory.SearchAsync(limit: 50, cancellationToken: cancellationToken);
+            return new(true, memories.Count == 0 ? "I don't have any saved memories yet." : string.Join(Environment.NewLine, memories.Select(m => $"• {m.Content}")));
+        }
+        var forget = Regex.Match(normalized, @"^forget(?:\s+that)?\s+(.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (forget.Success)
+        {
+            if (_memory is null) return new(true, "Local memory is unavailable.", false);
+            var query = forget.Groups[1].Value.Trim().TrimEnd('.', '!');
+            var matches = await _memory.SearchAsync(query, 20, cancellationToken);
+            if (matches.Count == 0) return new(true, "No saved memory matched that detail.");
+            if (_approval is null || !await _approval.ConfirmAsync("Forget saved memory?", string.Join(Environment.NewLine, matches.Select(m => m.Content)), cancellationToken))
+                return new(true, "Canceled; saved memory was kept.", false);
+            var removed = await _memory.DeleteMatchingAsync(query, cancellationToken);
+            return new(true, $"Removed {removed} matching saved {(removed == 1 ? "memory" : "memories")} from this computer.");
+        }
         var setReminder = ReminderPattern().Match(normalized);
         if (setReminder.Success)
         {

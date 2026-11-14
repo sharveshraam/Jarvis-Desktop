@@ -115,6 +115,16 @@ public interface IApplicationLauncher
 
 public sealed record JarvisReminder(string Id, string Title, DateTimeOffset DueAt, bool Notified);
 
+public sealed record JarvisMemory(string Id, string Content, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+
+public interface IMemoryStore
+{
+    Task InitializeAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<JarvisMemory>> SearchAsync(string? query = null, int limit = 30, CancellationToken cancellationToken = default);
+    Task AddAsync(string content, CancellationToken cancellationToken = default);
+    Task<int> DeleteMatchingAsync(string query, CancellationToken cancellationToken = default);
+}
+
 public interface IReminderStore
 {
     Task InitializeAsync(CancellationToken cancellationToken = default);
