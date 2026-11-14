@@ -74,3 +74,10 @@ Append a dated entry here whenever a meaningful project increment is completed. 
 - The value is optional: when Windows or the installed driver does not expose GPU engine counters, the system-status response says GPU data is unavailable.
 - Added an end-to-end Windows system-counter test and expanded the status-router test. Verification: **48 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
 - Pushed as `45dadeb feat: report busiest GPU engine utilization` to `origin/feature/jarvis-desktop`.
+
+## 2026-11-14 increment — reminder cancellation
+
+- Added persistent cancellation for upcoming reminders by short ID or exact title; reminder listings now include a stable short ID, and ambiguous titles ask the user to choose by ID.
+- Canceled reminders are filtered out of upcoming and due notifications. Existing databases are migrated in place by adding a `canceled` column without dropping or rewriting saved reminders.
+- Added coverage for cancellation, due-list suppression, ambiguous title handling, ID listing, and migration from the existing schema. Verification: **51 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
+- This increment is ready to push to `feature/jarvis-desktop`; publication status will be recorded after the push.

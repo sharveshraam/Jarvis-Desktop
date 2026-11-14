@@ -19,10 +19,23 @@ public sealed class SqliteReminderStore(string databasePath) : IReminderStore
                 id TEXT PRIMARY KEY,
                 title TEXT NOT NULL,
                 due_at_utc TEXT NOT NULL,
-                notified INTEGER NOT NULL DEFAULT 0
+                notified INTEGER NOT NULL DEFAULT 0,
+                canceled INTEGER NOT NULL DEFAULT 0
             );
-            CREATE INDEX IF NOT EXISTS ix_reminders_due ON reminders(notified, due_at_utc);
             """;
+        await command.ExecuteNonQueryAsync(cancellationToken);
+
+        command.CommandText = "PRAGMA table_info(reminders);";
+        var hasCanceled = false;
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+            while (await reader.ReadAsync(cancellationToken))
+                if (reader.GetString(1).Equals("canceled", StringComparison.OrdinalIgnoreCase)) hasCanceled = true;
+        if (!hasCanceled)
+        {
+            command.CommandText = "ALTER TABLE reminders ADD COLUMN canceled INTEGER NOT NULL DEFAULT 0;";
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+        command.CommandText = "CREATE INDEX IF NOT EXISTS ix_reminders_due ON reminders(notified, canceled, due_at_utc);";
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -39,10 +52,10 @@ public sealed class SqliteReminderStore(string databasePath) : IReminderStore
     }
 
     public Task<IReadOnlyList<JarvisReminder>> GetUpcomingAsync(int limit = 20, CancellationToken cancellationToken = default) =>
-        ReadAsync("SELECT id, title, due_at_utc, notified FROM reminders WHERE notified = 0 ORDER BY due_at_utc LIMIT $limit;", limit, null, cancellationToken);
+        ReadAsync("SELECT id, title, due_at_utc, notified FROM reminders WHERE notified = 0 AND canceled = 0 ORDER BY due_at_utc LIMIT $limit;", limit, null, cancellationToken);
 
     public Task<IReadOnlyList<JarvisReminder>> GetDueAsync(DateTimeOffset now, CancellationToken cancellationToken = default) =>
-        ReadAsync("SELECT id, title, due_at_utc, notified FROM reminders WHERE notified = 0 AND due_at_utc <= $now ORDER BY due_at_utc;", null, now, cancellationToken);
+        ReadAsync("SELECT id, title, due_at_utc, notified FROM reminders WHERE notified = 0 AND canceled = 0 AND due_at_utc <= $now ORDER BY due_at_utc;", null, now, cancellationToken);
 
     public async Task MarkNotifiedAsync(string id, CancellationToken cancellationToken = default)
     {
@@ -52,6 +65,16 @@ public sealed class SqliteReminderStore(string databasePath) : IReminderStore
         command.CommandText = "UPDATE reminders SET notified = 1 WHERE id = $id;";
         command.Parameters.AddWithValue("$id", id);
         await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<bool> CancelAsync(string id, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE reminders SET canceled = 1 WHERE id = $id AND notified = 0 AND canceled = 0;";
+        command.Parameters.AddWithValue("$id", id);
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
     private async Task<IReadOnlyList<JarvisReminder>> ReadAsync(string sql, int? limit, DateTimeOffset? now, CancellationToken cancellationToken)

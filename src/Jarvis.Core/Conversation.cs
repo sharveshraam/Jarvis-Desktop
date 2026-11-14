@@ -175,4 +175,5 @@ public interface IReminderStore
     Task<IReadOnlyList<JarvisReminder>> GetUpcomingAsync(int limit = 20, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<JarvisReminder>> GetDueAsync(DateTimeOffset now, CancellationToken cancellationToken = default);
     Task MarkNotifiedAsync(string id, CancellationToken cancellationToken = default);
+    Task<bool> CancelAsync(string id, CancellationToken cancellationToken = default);
 }

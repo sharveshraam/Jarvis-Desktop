@@ -135,7 +135,20 @@ public sealed partial class LocalCommandRouter
             var upcoming = await _reminders.GetUpcomingAsync(cancellationToken: cancellationToken);
             return new(true, upcoming.Count == 0
                 ? "You have no upcoming reminders."
-                : string.Join(Environment.NewLine, upcoming.Select(item => $"{item.DueAt.ToLocalTime():g} — {item.Title}")));
+                : string.Join(Environment.NewLine, upcoming.Select(item => $"[{item.Id[..Math.Min(8, item.Id.Length)]}] {item.DueAt.ToLocalTime():g} — {item.Title}")));
+        }
+        var cancelReminder = CancelReminderPattern().Match(normalized);
+        if (cancelReminder.Success)
+        {
+            if (_reminders is null) return new(true, "Reminders are unavailable in this session.", false);
+            var identifier = cancelReminder.Groups[1].Value.Trim().Trim('"', '\'');
+            var upcoming = await _reminders.GetUpcomingAsync(cancellationToken: cancellationToken);
+            var matches = upcoming.Where(item => item.Id.StartsWith(identifier, StringComparison.OrdinalIgnoreCase) ||
+                item.Title.Equals(identifier, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
+            if (matches.Length == 0) return new(true, "No upcoming reminder matched that ID or exact title.", false);
+            if (matches.Length > 1) return new(true, "More than one reminder matched that title. Use its ID from ‘show reminders’.", false);
+            var canceled = await _reminders.CancelAsync(matches[0].Id, cancellationToken);
+            return new(true, canceled ? $"Canceled reminder: {matches[0].Title}." : "That reminder was already delivered or canceled.", canceled);
         }
         var folder = CreateFolderPattern().Match(normalized);
         if (folder.Success) return await CreateDesktopFolderAsync(folder.Groups[1].Value.Trim().Trim('"', '\''), cancellationToken);
@@ -335,6 +348,9 @@ public sealed partial class LocalCommandRouter
 
     [GeneratedRegex("^(?:remind me|set a reminder) in (\\d{1,6})\\s+(minutes?|hours?|days?)\\s+to\\s+(.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ReminderPattern();
+
+    [GeneratedRegex("^(?:cancel|remove)\\s+(?:the\\s+)?reminder\\s+(.+?)\\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex CancelReminderPattern();
 
     [GeneratedRegex(@"^(?:calculate|what is)\s+(.+?)\s*\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CalculationPattern();
