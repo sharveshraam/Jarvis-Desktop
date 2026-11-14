@@ -51,3 +51,8 @@ public interface ILocalFileSearch
 {
     Task<LocalFileSearchResult> FindLatestPdfAsync(CancellationToken cancellationToken = default);
 }
+
+public interface IApplicationLauncher
+{
+    void Start(string applicationCommand);
+}

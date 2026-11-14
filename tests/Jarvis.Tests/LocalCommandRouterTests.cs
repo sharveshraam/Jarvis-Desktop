@@ -162,6 +162,19 @@ public sealed class LocalCommandRouterTests
         finally { Directory.Delete(root); }
     }
 
+    [Theory]
+    [InlineData("open VS Code", "code", "Opened Visual Studio Code.")]
+    [InlineData("open Visual Studio", "devenv.exe", "Opened Visual Studio.")]
+    public async Task LaunchesOnlyAllowlistedDevelopmentTools(string text, string expectedCommand, string expectedResponse)
+    {
+        var launcher = new FakeApplicationLauncher();
+        var router = new LocalCommandRouter(applicationLauncher: launcher);
+        var result = await router.TryRunAsync(text);
+        Assert.True(result.Handled);
+        Assert.Equal(expectedCommand, launcher.LastCommand);
+        Assert.Equal(expectedResponse, result.Response);
+    }
+
     private sealed class FakeApproval(bool approved) : IActionApproval
     {
         public bool Called { get; private set; }
@@ -177,5 +190,11 @@ public sealed class LocalCommandRouterTests
     private sealed class FakeSystemInfo(MemoryStatus memory) : ISystemInfoProvider
     {
         public MemoryStatus GetMemoryStatus() => memory;
+    }
+
+    private sealed class FakeApplicationLauncher : IApplicationLauncher
+    {
+        public string? LastCommand { get; private set; }
+        public void Start(string applicationCommand) => LastCommand = applicationCommand;
     }
 }

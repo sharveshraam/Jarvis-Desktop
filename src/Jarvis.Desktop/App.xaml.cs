@@ -29,6 +29,7 @@ public partial class App : Application
                 services.AddSingleton<DesktopFileSystem>();
                 services.AddSingleton<ISystemInfoProvider, WindowsSystemInfo>();
                 services.AddSingleton<ILocalFileSearch, WindowsFileSearch>();
+                services.AddSingleton<IApplicationLauncher, WindowsApplicationLauncher>();
                 services.AddSingleton<LocalCommandRouter>();
                 services.AddSingleton<ChatViewModel>();
                 services.AddSingleton<MainWindow>();

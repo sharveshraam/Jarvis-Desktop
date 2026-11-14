@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Jarvis.Core;
@@ -13,13 +12,15 @@ public sealed partial class LocalCommandRouter
     private readonly DesktopFileSystem? _files;
     private readonly ISystemInfoProvider? _systemInfo;
     private readonly ILocalFileSearch? _fileSearch;
+    private readonly IApplicationLauncher? _applicationLauncher;
 
-    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null, ISystemInfoProvider? systemInfo = null, ILocalFileSearch? fileSearch = null)
+    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null, ISystemInfoProvider? systemInfo = null, ILocalFileSearch? fileSearch = null, IApplicationLauncher? applicationLauncher = null)
     {
         _approval = approval;
         _files = files;
         _systemInfo = systemInfo;
         _fileSearch = fileSearch;
+        _applicationLauncher = applicationLauncher;
     }
 
     private static readonly IReadOnlyDictionary<string, string> Applications = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -29,7 +30,11 @@ public sealed partial class LocalCommandRouter
         ["calc"] = "calc.exe",
         ["paint"] = "mspaint.exe",
         ["file explorer"] = "explorer.exe",
-        ["explorer"] = "explorer.exe"
+        ["explorer"] = "explorer.exe",
+        ["visual studio code"] = "code",
+        ["vs code"] = "code",
+        ["code"] = "code",
+        ["visual studio"] = "devenv.exe"
     };
 
     public async Task<LocalCommandResult> TryRunAsync(string text, CancellationToken cancellationToken = default)
@@ -132,10 +137,11 @@ public sealed partial class LocalCommandRouter
             var name = launch.Groups[1].Value.Trim().TrimEnd('.', '!');
             if (!Applications.TryGetValue(name, out var executable))
                 return new(true, $"I can open a limited set of apps directly right now. '{name}' is not in the launch allowlist yet.");
+            if (_applicationLauncher is null) return new(true, "Application launching is unavailable in this session.");
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                Process.Start(new ProcessStartInfo(executable) { UseShellExecute = true });
+                _applicationLauncher.Start(executable);
                 await Task.Yield();
                 return new(true, $"Opened {DisplayName(name)}.");
             }
@@ -152,6 +158,8 @@ public sealed partial class LocalCommandRouter
     {
         "calc" or "calculator" => "Calculator",
         "file explorer" or "explorer" => "File Explorer",
+        "vs code" or "visual studio code" or "code" => "Visual Studio Code",
+        "visual studio" => "Visual Studio",
         _ => CultureInfo.InvariantCulture.TextInfo.ToTitleCase(name)
     };
 
