@@ -33,3 +33,13 @@ public interface IActionApproval
 {
     Task<bool> ConfirmAsync(string title, string details, CancellationToken cancellationToken = default);
 }
+
+public sealed record MemoryStatus(ulong TotalBytes, ulong AvailableBytes)
+{
+    public ulong UsedBytes => TotalBytes >= AvailableBytes ? TotalBytes - AvailableBytes : 0;
+}
+
+public interface ISystemInfoProvider
+{
+    MemoryStatus GetMemoryStatus();
+}

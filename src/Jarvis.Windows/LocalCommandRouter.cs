@@ -11,11 +11,13 @@ public sealed partial class LocalCommandRouter
 {
     private readonly IActionApproval? _approval;
     private readonly DesktopFileSystem? _files;
+    private readonly ISystemInfoProvider? _systemInfo;
 
-    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null)
+    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null, ISystemInfoProvider? systemInfo = null)
     {
         _approval = approval;
         _files = files;
+        _systemInfo = systemInfo;
     }
 
     private static readonly IReadOnlyDictionary<string, string> Applications = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -46,6 +48,20 @@ public sealed partial class LocalCommandRouter
             try { return new(true, await _files.CreateDesktopFolderAsync(name, cancellationToken)); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
             { return new(true, $"Could not create the folder: {ex.Message}"); }
+        }
+        if (Regex.IsMatch(normalized, @"^(?:show|check|what(?:'s| is)?)\s+(?:my\s+)?(?:ram|memory)(?:\s+usage)?\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            if (_systemInfo is null) return new(true, "System memory information is unavailable.");
+            try
+            {
+                var memory = _systemInfo.GetMemoryStatus();
+                if (memory.TotalBytes == 0) return new(true, "Windows returned an empty memory status.");
+                var usedGiB = memory.UsedBytes / 1024d / 1024 / 1024;
+                var totalGiB = memory.TotalBytes / 1024d / 1024 / 1024;
+                var percent = memory.UsedBytes * 100d / memory.TotalBytes;
+                return new(true, $"Memory in use: {usedGiB:0.0} GB of {totalGiB:0.0} GB ({percent:0}%).");
+            }
+            catch (InvalidOperationException ex) { return new(true, ex.Message); }
         }
         if (Regex.IsMatch(normalized, @"^(what(?:'s| is) the )?time\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
             return new(true, $"It is {now.ToString("h:mm tt", CultureInfo.CurrentCulture)}.");

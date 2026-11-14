@@ -87,6 +87,15 @@ public sealed class LocalCommandRouterTests
         finally { Directory.Delete(root); }
     }
 
+    [Fact]
+    public async Task ReportsRamUsageLocallyWithoutAi()
+    {
+        var router = new LocalCommandRouter(systemInfo: new FakeSystemInfo(new MemoryStatus(16UL * 1024 * 1024 * 1024, 6UL * 1024 * 1024 * 1024)));
+        var result = await router.TryRunAsync("show my RAM usage");
+        Assert.True(result.Handled);
+        Assert.Equal("Memory in use: 10.0 GB of 16.0 GB (63%).", result.Response);
+    }
+
     private sealed class FakeApproval(bool approved) : IActionApproval
     {
         public bool Called { get; private set; }
@@ -97,5 +106,10 @@ public sealed class LocalCommandRouterTests
             Details = details;
             return Task.FromResult(approved);
         }
+    }
+
+    private sealed class FakeSystemInfo(MemoryStatus memory) : ISystemInfoProvider
+    {
+        public MemoryStatus GetMemoryStatus() => memory;
     }
 }

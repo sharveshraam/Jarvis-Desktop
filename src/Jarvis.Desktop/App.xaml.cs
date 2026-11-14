@@ -27,6 +27,7 @@ public partial class App : Application
                 services.AddSingleton<IAiProvider>(sp => new GeminiProvider(sp.GetRequiredService<HttpClient>(), sp.GetRequiredService<ISecretStore>()));
                 services.AddSingleton<IActionApproval, MessageBoxActionApproval>();
                 services.AddSingleton<DesktopFileSystem>();
+                services.AddSingleton<ISystemInfoProvider, WindowsSystemInfo>();
                 services.AddSingleton<LocalCommandRouter>();
                 services.AddSingleton<ChatViewModel>();
                 services.AddSingleton<MainWindow>();
