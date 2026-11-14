@@ -7,8 +7,8 @@ Last updated: 2026-11-14
 - Public repository: `sharveshraam/Jarvis-Desktop`
 - Working branch: `feature/jarvis-desktop`
 - Lumi and the original repositories remain separate and untouched.
-- Latest feature commit: `64fd6b7 feat: add local performance diagnostics`.
-- Latest progress log commit: `7bbb6a5 docs: record JARVIS push status`.
+- Latest feature commit: `45dadeb feat: report busiest GPU engine utilization`.
+- Progress log is maintained alongside each implementation increment on this branch.
 - Previous milestone: `d6fa3e3 feat: add persistent background project tasks`.
 
 ## Completed milestones
@@ -73,4 +73,4 @@ Append a dated entry here whenever a meaningful project increment is completed. 
 - Added Windows Performance Data Helper sampling for the busiest `GPU Engine` utilization counter. JARVIS labels this as busiest-engine utilization rather than presenting it as an aggregate across all GPU engines.
 - The value is optional: when Windows or the installed driver does not expose GPU engine counters, the system-status response says GPU data is unavailable.
 - Added an end-to-end Windows system-counter test and expanded the status-router test. Verification: **48 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
-- This increment is ready to push to `feature/jarvis-desktop`; publication status will be recorded after the push.
+- Pushed as `45dadeb feat: report busiest GPU engine utilization` to `origin/feature/jarvis-desktop`.
