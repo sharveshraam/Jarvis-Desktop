@@ -7,7 +7,8 @@ Last updated: 2026-11-14
 - Public repository: `sharveshraam/Jarvis-Desktop`
 - Working branch: `feature/jarvis-desktop`
 - Lumi and the original repositories remain separate and untouched.
-- Previous pushed baseline: `d6fa3e3 feat: add persistent background project tasks`.
+- Latest pushed commit: `64fd6b7 feat: add local performance diagnostics`.
+- Previous milestone: `d6fa3e3 feat: add persistent background project tasks`.
 
 ## Completed milestones
 
@@ -34,11 +35,17 @@ Last updated: 2026-11-14
 
 - Completed local-only timing records for total interaction time, time to first output, Gemini and tool durations, speech recognition/output duration, call counts, and outcome.
 - Added the `show JARVIS diagnostics` command. Performance records exclude prompts, transcripts, API keys, and tool arguments.
-- Added persistence, percentile aggregation, and diagnostics-routing tests. Full Release tests and build pass; **GitHub push for this increment is pending**.
+- Added persistence, percentile aggregation, and diagnostics-routing tests. Full Release tests and build pass; this increment is pushed to GitHub in `64fd6b7`.
+
+## GitHub update
+
+- Commit `64fd6b7` is on `origin/feature/jarvis-desktop`.
+- Local verification for that commit's source: 46 tests passed and Release build completed with 0 warnings and 0 errors.
+- The next status update checks the GitHub Actions run triggered by the push.
 
 ## Remaining work from the master build prompt
 
-- Confirm GitHub contains this diagnostics increment after the pending push.
+- Confirm CI on GitHub passes for commit `64fd6b7`; continue with broader file/app workflows and remaining release requirements.
 - Broaden file and Windows application workflows and add stronger UI Automation integrations.
 - Improve and benchmark speech recognition/TTS, including manual microphone and interruption tests; current voice implementation is a basic local baseline.
 - Implement richer research/search integrations, context management, configurable routing beyond a single Gemini model, and broader software-development workflows.
