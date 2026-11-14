@@ -26,25 +26,19 @@ Last updated: 2026-11-14
 
 ## Verification completed
 
-- Latest verified test run: **46 passed, 0 failed**.
+- Latest verified test run: **53 passed, 0 failed**.
 - Latest verified full Release build: **0 warnings, 0 errors**.
 - GitHub Actions run [#18](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43601058115) for `64fd6b7` completed successfully, including Windows restore, Release build, tests, self-contained `win-x64` publish, ZIP packaging, and artifact upload.
-- A later docs-only push started GitHub Actions run [#19](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43601113235); it was still running at the last status check.
+- Latest confirmed GitHub Actions run for code commit `75579df` [completed successfully](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43602319296); the subsequent docs-only run for `4d2182c` also [completed successfully](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43602341632).
 - Live Gemini request was not sent: the current Windows-user key store has no API key configured.
 - Live UI input could not be completed: JARVIS's window was present in the app inventory, but its captured screen was black and Windows rejected interaction while locked.
 - No final signed release installer has been produced. GitHub Actions has built and uploaded a self-contained development ZIP artifact; the full requested project is still in progress.
 
 ## Latest increment
 
-- Completed local-only timing records for total interaction time, time to first output, Gemini and tool durations, speech recognition/output duration, call counts, and outcome.
-- Added the `show JARVIS diagnostics` command. Performance records exclude prompts, transcripts, API keys, and tool arguments.
-- Added persistence, percentile aggregation, and diagnostics-routing tests. Full Release tests and build pass; this increment is pushed to GitHub in `64fd6b7`.
-
-## GitHub update
-
-- Commit `64fd6b7` is on `origin/feature/jarvis-desktop`.
-- Local verification for that commit's source: 46 tests passed and Release build completed with 0 warnings and 0 errors.
-- The next status update checks the GitHub Actions run triggered by the push.
+- Added bounded local filename search across Desktop, Documents, and Downloads; displays matching paths newest first and clearly indicates when search limits were reached.
+- Skips reparse-point entries, validates search text as a filename fragment rather than a path or wildcard, and caps results and directory traversal.
+- Verification: 53 tests pass and the full Release build has 0 warnings and 0 errors. This increment is currently being prepared for push.
 
 ## Remaining work from the master build prompt
 
@@ -81,3 +75,10 @@ Append a dated entry here whenever a meaningful project increment is completed. 
 - Canceled reminders are filtered out of upcoming and due notifications. Existing databases are migrated in place by adding a `canceled` column without dropping or rewriting saved reminders.
 - Added coverage for cancellation, due-list suppression, ambiguous title handling, ID listing, and migration from the existing schema. Verification: **51 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
 - Pushed as `75579df feat: add persistent reminder cancellation` to `origin/feature/jarvis-desktop`.
+
+## 2026-11-14 increment — bounded filename search
+
+- Added local partial-name search for files in Desktop, Documents, and Downloads, with newest-first results and full file paths.
+- Search skips reparse points, rejects path/wildcard input, limits traversal to 4,000 directories and results to 10, and reports when those bounds truncate results.
+- Verification: **53 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
+- Latest preceding code and documentation GitHub Actions runs for `75579df` and `4d2182c` are both successful. The filename-search change is prepared for push.

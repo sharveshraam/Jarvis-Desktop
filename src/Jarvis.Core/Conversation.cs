@@ -105,10 +105,12 @@ public interface ISystemInfoProvider
 
 public sealed record LocalFileMatch(string FullPath, DateTime LastModified);
 public sealed record LocalFileSearchResult(LocalFileMatch? Match, bool SearchLimitReached);
+public sealed record LocalFileSearchResults(IReadOnlyList<LocalFileMatch> Matches, bool SearchLimitReached);
 
 public interface ILocalFileSearch
 {
     Task<LocalFileSearchResult> FindLatestPdfAsync(CancellationToken cancellationToken = default);
+    Task<LocalFileSearchResults> FindFilesByNameAsync(string nameQuery, int limit = 10, CancellationToken cancellationToken = default);
 }
 
 public interface IApplicationLauncher

@@ -155,6 +155,52 @@ public sealed class LocalCommandRouterTests
     }
 
     [Fact]
+    public async Task SearchesLocalFilesByPartialNameAndReportsPaths()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"jarvis-name-search-{Guid.NewGuid():N}");
+        var nested = Directory.CreateDirectory(Path.Combine(root, "course" )).FullName;
+        try
+        {
+            var first = Path.Combine(root, "Physics-Lab-Notes.txt");
+            var second = Path.Combine(nested, "physics-review.pdf");
+            await File.WriteAllTextAsync(first, "notes");
+            await File.WriteAllTextAsync(second, "review");
+            File.SetLastWriteTime(first, DateTime.Now.AddDays(-1));
+            File.SetLastWriteTime(second, DateTime.Now);
+
+            var router = new LocalCommandRouter(fileSearch: new WindowsFileSearch([root]));
+            var result = await router.TryRunAsync("find files containing physics");
+
+            Assert.True(result.Handled);
+            Assert.Contains(second, result.Response);
+            Assert.Contains(first, result.Response);
+            Assert.True(result.Response!.IndexOf(second, StringComparison.Ordinal) < result.Response.IndexOf(first, StringComparison.Ordinal));
+        }
+        finally
+        {
+            foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)) File.Delete(file);
+            Directory.Delete(nested);
+            Directory.Delete(root);
+        }
+    }
+
+    [Fact]
+    public async Task RejectsLocalFileSearchPatternsThatCouldEscapeFilenameMatching()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"jarvis-name-search-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var router = new LocalCommandRouter(fileSearch: new WindowsFileSearch([root]));
+            var result = await router.TryRunAsync("search files named ../secret");
+            Assert.True(result.Handled);
+            Assert.False(result.Succeeded);
+            Assert.Contains("filename", result.Response, StringComparison.OrdinalIgnoreCase);
+        }
+        finally { Directory.Delete(root); }
+    }
+
+    [Fact]
     public async Task CreatesTextFileOnlyAfterApprovalAndReadsItLocally()
     {
         var root = Path.Combine(Path.GetTempPath(), $"jarvis-file-test-{Guid.NewGuid():N}");

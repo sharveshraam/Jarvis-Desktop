@@ -190,6 +190,25 @@ public sealed partial class LocalCommandRouter
             catch (Exception ex) when (ex is InvalidOperationException or NetworkInformationException)
             { return new(true, $"Could not read system status: {ex.Message}", false); }
         }
+        var findFiles = FindFilesPattern().Match(normalized);
+        if (findFiles.Success)
+        {
+            if (_fileSearch is null) return new(true, "Local file search is unavailable.", false);
+            var query = findFiles.Groups[1].Value.Trim().Trim('"', '\'');
+            try
+            {
+                var search = await _fileSearch.FindFilesByNameAsync(query, cancellationToken: cancellationToken);
+                var lines = search.Matches.Select(match => $"{Path.GetFileName(match.FullPath)}\n{match.FullPath}\nModified {match.LastModified:g}").ToArray();
+                if (lines.Length == 0)
+                    return new(true, search.SearchLimitReached
+                        ? "No matching file was found before the local search limit was reached."
+                        : $"I couldn't find a filename containing ‘{query}’ in Desktop, Documents, or Downloads.");
+                var suffix = search.SearchLimitReached ? "\nSearch limit reached; there may be more matches." : string.Empty;
+                return new(true, string.Join(Environment.NewLine + Environment.NewLine, lines) + suffix);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (ArgumentException ex) { return new(true, ex.Message, false); }
+        }
         if (Regex.IsMatch(normalized, @"^(?:find|show)\s+(?:my\s+)?(?:latest|most recent)\s+pdf(?:\s+file)?\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
         {
             if (_fileSearch is null) return new(true, "Local file search is unavailable.", false);
@@ -348,6 +367,9 @@ public sealed partial class LocalCommandRouter
 
     [GeneratedRegex("^(?:remind me|set a reminder) in (\\d{1,6})\\s+(minutes?|hours?|days?)\\s+to\\s+(.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ReminderPattern();
+
+    [GeneratedRegex("^(?:find|search)\\s+(?:for\\s+)?(?:my\\s+)?files?\\s+(?:named|called|containing|matching|for)\\s+(.+?)\\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex FindFilesPattern();
 
     [GeneratedRegex("^(?:cancel|remove)\\s+(?:the\\s+)?reminder\\s+(.+?)\\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CancelReminderPattern();
