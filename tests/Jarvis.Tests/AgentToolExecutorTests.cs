@@ -82,6 +82,164 @@ public sealed class AgentToolExecutorTests
         }
     }
 
+    [Fact]
+    public async Task LocalUserFileContentIsNotReadOrReturnedBeforeApproval()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"jarvis-agent-tool-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "lab-notes.txt");
+        try
+        {
+            await File.WriteAllTextAsync(file, "synthetic private local notes");
+            var approval = new FakeApproval(false);
+            var tools = new LocalAgentToolExecutor(new LocalCommandRouter(), approval, userFiles: new SafeUserFiles([root]));
+
+            var response = await tools.ExecuteAsync(Call("read_user_file", new { path = file }));
+
+            Assert.False(response.GetProperty("success").GetBoolean());
+            Assert.Contains("sent to Google Gemini", approval.Details);
+            Assert.Contains(file, approval.Details);
+            Assert.DoesNotContain("synthetic private local notes", response.GetProperty("result").GetString());
+        }
+        finally
+        {
+            if (File.Exists(file)) File.Delete(file);
+            Directory.Delete(root);
+        }
+    }
+
+    [Fact]
+    public async Task ApprovedLocalUserFileCanBeSharedOnlyAfterItIsInspected()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"jarvis-agent-tool-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "lab-notes.txt");
+        try
+        {
+            await File.WriteAllTextAsync(file, "synthetic approved content");
+            var approval = new FakeApproval(true);
+            var tools = new LocalAgentToolExecutor(new LocalCommandRouter(), approval, userFiles: new SafeUserFiles([root]));
+
+            var response = await tools.ExecuteAsync(Call("read_user_file", new { path = file }));
+
+            Assert.True(response.GetProperty("success").GetBoolean());
+            Assert.Contains("synthetic approved content", response.GetProperty("result").GetString());
+            Assert.Contains("Size:", approval.Details);
+        }
+        finally
+        {
+            if (File.Exists(file)) File.Delete(file);
+            Directory.Delete(root);
+        }
+    }
+
+    [Fact]
+    public async Task CloudRequestedFilenameSearchRequiresApprovalBeforePathsAreShared()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"jarvis-agent-tool-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "synthetic-secret-lab.txt");
+        try
+        {
+            await File.WriteAllTextAsync(file, "not sent");
+            var approval = new FakeApproval(false);
+            var router = new LocalCommandRouter(fileSearch: new WindowsFileSearch([root]));
+            var tools = new LocalAgentToolExecutor(router, approval);
+
+            var response = await tools.ExecuteAsync(Call("search_user_files", new { query = "secret-lab" }));
+
+            Assert.False(response.GetProperty("success").GetBoolean());
+            Assert.Contains("names and paths will be sent", approval.Details);
+            Assert.Contains(file, approval.Details);
+            Assert.DoesNotContain(file, response.GetProperty("result").GetString());
+        }
+        finally
+        {
+            if (File.Exists(file)) File.Delete(file);
+            Directory.Delete(root);
+        }
+    }
+
+    [Fact]
+    public async Task ApprovedCloudRequestedFilenameSearchReturnsLocalMatches()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"jarvis-agent-tool-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "lecture-notes.txt");
+        try
+        {
+            await File.WriteAllTextAsync(file, "not uploaded as part of a filename search");
+            var approval = new FakeApproval(true);
+            var tools = new LocalAgentToolExecutor(new LocalCommandRouter(fileSearch: new WindowsFileSearch([root])), approval);
+
+            var response = await tools.ExecuteAsync(Call("search_user_files", new { query = "lecture-notes" }));
+
+            Assert.True(response.GetProperty("success").GetBoolean());
+            Assert.Contains(file, response.GetProperty("result").GetString());
+            Assert.DoesNotContain("not uploaded as part of a filename search", response.GetProperty("result").GetString());
+            Assert.Contains("names and paths will be sent", approval.Details);
+        }
+        finally
+        {
+            if (File.Exists(file)) File.Delete(file);
+            Directory.Delete(root);
+        }
+    }
+
+    [Fact]
+    public async Task LocalFileOutsideAllowedFoldersIsRejectedBeforeApproval()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"jarvis-agent-tool-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "outside.txt");
+        try
+        {
+            await File.WriteAllTextAsync(file, "private");
+            var approval = new FakeApproval(true);
+            var tools = new LocalAgentToolExecutor(new LocalCommandRouter(), approval, userFiles: new SafeUserFiles([Path.Combine(root, "allowed")]));
+
+            var response = await tools.ExecuteAsync(Call("read_user_file", new { path = file }));
+
+            Assert.False(response.GetProperty("success").GetBoolean());
+            Assert.False(approval.Called);
+            Assert.DoesNotContain("private", response.GetProperty("result").GetString());
+        }
+        finally
+        {
+            if (File.Exists(file)) File.Delete(file);
+            Directory.Delete(root);
+        }
+    }
+
+    [Fact]
+    public async Task ChangedLocalFileRequiresFreshApprovalAndIsNotShared()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"jarvis-agent-tool-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "notes.txt");
+        try
+        {
+            await File.WriteAllTextAsync(file, "original approved content");
+            var approval = new FakeApproval(true, () =>
+            {
+                File.WriteAllText(file, "replacement content");
+                File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddSeconds(5));
+            });
+            var tools = new LocalAgentToolExecutor(new LocalCommandRouter(), approval, userFiles: new SafeUserFiles([root]));
+
+            var response = await tools.ExecuteAsync(Call("read_user_file", new { path = file }));
+
+            Assert.False(response.GetProperty("success").GetBoolean());
+            Assert.Contains("file changed after confirmation", response.GetProperty("result").GetString());
+            Assert.DoesNotContain("replacement content", response.GetProperty("result").GetString());
+        }
+        finally
+        {
+            if (File.Exists(file)) File.Delete(file);
+            Directory.Delete(root);
+        }
+    }
+
     private static AiFunctionCall Call(string name, object args)
     {
         using var arguments = JsonDocument.Parse(JsonSerializer.Serialize(args));
@@ -89,7 +247,7 @@ public sealed class AgentToolExecutorTests
         return new AiFunctionCall(name, arguments.RootElement.Clone(), content.RootElement.Clone());
     }
 
-    private sealed class FakeApproval(bool approved) : IActionApproval
+    private sealed class FakeApproval(bool approved, Action? onConfirm = null) : IActionApproval
     {
         public bool Called { get; private set; }
         public string Details { get; private set; } = string.Empty;
@@ -97,6 +255,7 @@ public sealed class AgentToolExecutorTests
         {
             Called = true;
             Details = details;
+            onConfirm?.Invoke();
             return Task.FromResult(approved);
         }
     }

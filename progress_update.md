@@ -26,19 +26,19 @@ Last updated: 2026-11-14
 
 ## Verification completed
 
-- Latest verified test run: **62 passed, 0 failed**.
+- Latest verified test run: **68 passed, 0 failed**.
 - Latest verified full Release build: **0 warnings, 0 errors**.
 - GitHub Actions run [#18](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43601058115) for `64fd6b7` completed successfully, including Windows restore, Release build, tests, self-contained `win-x64` publish, ZIP packaging, and artifact upload.
-- Latest filename-search code run `a3603ae` [completed successfully](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43602640452); the follow-up docs run `ce74955` [also completed successfully](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43602669568).
+- Latest mode persistence code run `b4bb802` [completed successfully](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43603130140); the follow-up docs run `6b75e62` [also completed successfully](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43603158972).
 - Live Gemini request was not sent: the current Windows-user key store has no API key configured.
 - Live UI input could not be completed: JARVIS's window was present in the app inventory, but its captured screen was black and Windows rejected interaction while locked.
 - No final signed release installer has been produced. GitHub Actions has built and uploaded a self-contained development ZIP artifact; the full requested project is still in progress.
 
 ## Latest increment
 
-- Added mode-specific Gemini behavior guidance for Personal, Study, Development, Research, Focus, System, and Creator modes; the selected mode now persists across app restarts.
-- Research mode explicitly avoids implying live source verification without a browsing tool. New preferences store the mode as readable text; older settings files default to Personal.
-- Verification: 62 tests pass and the full Release build has 0 warnings and 0 errors. The persistence increment is being prepared for push.
+- Added explicit-consent Gemini tools for searching local filenames and reading supported text files in Desktop, Documents, and Downloads.
+- Contents are not read until approval. Approval shows path, size, and modification time; changed files require fresh confirmation, and changes during reading are detected before content is returned. Access is bounded to 1 MB text files and refuses unsupported extensions, paths outside allowed roots, and reparse points.
+- Verification: 68 tests pass and the full Release build has 0 warnings and 0 errors. README privacy guidance is updated; this increment is being prepared for push.
 
 ## Remaining work from the master build prompt
 
@@ -95,3 +95,10 @@ Append a dated entry here whenever a meaningful project increment is completed. 
 - Older preference files without a mode continue to load as Personal. Unknown numeric enum values fall back to Personal, and invalid mode values cannot be saved.
 - Added tests for readable mode persistence and legacy settings compatibility. Verification: **62 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
 - Pushed as `b4bb802 feat: persist selected working mode` to `origin/feature/jarvis-desktop`.
+
+## 2026-11-14 increment — approval-gated local text files
+
+- Added Gemini tools to search user filenames and read supported local text files from Desktop, Documents, or Downloads.
+- Requires a preview and explicit approval before sending names/paths, and separate approval before sending contents. Enforces folder boundaries, extension allowlists, a 1 MB size cap, reparse-point exclusion, strict UTF-8, and file-change detection before and after the read.
+- Added tests for declined and approved searches, declined and approved reads, off-folder rejection, and change-after-approval detection. Verification: **68 tests passed, 0 failed**; full Release solution build succeeded with **0 warnings and 0 errors**.
+- GitHub Actions for mode persistence [passed](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43603130140) and its progress-log push [passed](https://github.com/sharveshraam/Jarvis-Desktop/actions/runs/43603158972). This increment is ready to push.

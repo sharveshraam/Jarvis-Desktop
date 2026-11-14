@@ -49,6 +49,7 @@ public partial class App : Application
                 services.AddSingleton<DesktopFileSystem>();
                 services.AddSingleton<ISystemInfoProvider, WindowsSystemInfo>();
                 services.AddSingleton<ILocalFileSearch, WindowsFileSearch>();
+                services.AddSingleton<SafeUserFiles>();
                 services.AddSingleton<IApplicationLauncher, WindowsApplicationLauncher>();
                 services.AddSingleton<LocalCommandRouter>();
                 services.AddSingleton<ProjectWorkspaceTools>();
@@ -56,7 +57,8 @@ public partial class App : Application
                     sp.GetRequiredService<LocalCommandRouter>(),
                     sp.GetRequiredService<IActionApproval>(),
                     sp.GetRequiredService<DesktopFileSystem>(),
-                    sp.GetRequiredService<ProjectWorkspaceTools>()));
+                    sp.GetRequiredService<ProjectWorkspaceTools>(),
+                    sp.GetRequiredService<SafeUserFiles>()));
                 services.AddSingleton<ChatViewModel>();
                 services.AddSingleton<MainWindow>();
             })

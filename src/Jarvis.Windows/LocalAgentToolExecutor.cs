@@ -3,7 +3,7 @@ using Jarvis.Core;
 
 namespace Jarvis.Windows;
 
-public sealed class LocalAgentToolExecutor(LocalCommandRouter router, IActionApproval? approval = null, DesktopFileSystem? files = null, ProjectWorkspaceTools? workspace = null) : IAgentToolExecutor
+public sealed class LocalAgentToolExecutor(LocalCommandRouter router, IActionApproval? approval = null, DesktopFileSystem? files = null, ProjectWorkspaceTools? workspace = null, SafeUserFiles? userFiles = null) : IAgentToolExecutor
 {
     public async Task<JsonElement> ExecuteAsync(AiFunctionCall call, CancellationToken cancellationToken = default)
     {
@@ -37,6 +37,8 @@ public sealed class LocalAgentToolExecutor(LocalCommandRouter router, IActionApp
                 "create_desktop_text_file" => await router.CreateDesktopTextFileAsync(
                     RequiredString(call.Arguments, "name"), RequiredString(call.Arguments, "content"), cancellationToken),
                 "read_desktop_text_file" => await ReadDesktopFileForCloudAsync(RequiredString(call.Arguments, "name"), cancellationToken),
+                "search_user_files" => await SearchUserFilesForCloudAsync(RequiredString(call.Arguments, "query"), cancellationToken),
+                "read_user_file" => await ReadUserFileForCloudAsync(RequiredString(call.Arguments, "path"), cancellationToken),
                 "create_reminder" => await CreateReminderAsync(call.Arguments, cancellationToken),
                 "list_reminders" => await router.TryRunAsync("show reminders", cancellationToken),
                 _ => new LocalCommandResult(false, $"The tool '{call.Name}' is not available.")
@@ -63,6 +65,39 @@ public sealed class LocalAgentToolExecutor(LocalCommandRouter router, IActionApp
             cancellationToken);
         if (!approved) return new(true, "Canceled. The file was not read or shared.", false);
         return await router.ReadDesktopTextFileAsync(name, cancellationToken);
+    }
+
+    private async Task<LocalCommandResult> SearchUserFilesForCloudAsync(string query, CancellationToken cancellationToken)
+    {
+        if (approval is null) return new(true, "Sharing local file names with Gemini is unavailable in this session.", false);
+        var search = await router.TryRunAsync($"find files containing {query}", cancellationToken);
+        if (!search.Handled || !search.Succeeded) return search;
+        var preview = search.Response ?? "No matching files.";
+        if (preview.Length > 2_000) preview = preview[..2_000] + "\n… preview truncated …";
+        var approved = await approval.ConfirmAsync("Share matching file names with Gemini?",
+            $"The search happens on this PC. If you approve, matching file names and paths will be sent to Google Gemini.\n\n{preview}", cancellationToken);
+        return approved ? search : new(true, "Canceled. File names were not shared with Gemini.", false);
+    }
+
+    private async Task<LocalCommandResult> ReadUserFileForCloudAsync(string path, CancellationToken cancellationToken)
+    {
+        if (approval is null || userFiles is null)
+            return new(true, "Sharing local file contents with Gemini is unavailable in this session.", false);
+        UserFileSummary summary;
+        try { summary = userFiles.Inspect(path); }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException or IOException)
+        { return new(true, ex.Message, false); }
+
+        var approved = await approval.ConfirmAsync("Send local file contents to Gemini?",
+            $"The contents of this file will be sent to Google Gemini.\nPath: {summary.FullPath}\nSize: {summary.Length:N0} bytes\nLast modified: {summary.LastModifiedUtc.ToLocalTime():g}\n\nContinue?", cancellationToken);
+        if (!approved) return new(true, "Canceled. The file was not read or shared.", false);
+        try
+        {
+            var content = await userFiles.ReadIfUnchangedAsync(summary, cancellationToken);
+            return new(true, $"{summary.FullPath}\n{content}");
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException or IOException)
+        { return new(true, ex.Message, false); }
     }
 
     private async Task<LocalCommandResult> CreateReminderAsync(JsonElement arguments, CancellationToken cancellationToken)

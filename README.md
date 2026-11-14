@@ -6,7 +6,7 @@ An independent Windows desktop assistant for chat, quick local actions, and safe
 
 This repository is the new desktop application, separate from Lumi and the existing `Project-Jarvis` repository. Work is underway on `feature/jarvis-desktop`.
 
-The current development build has a native WPF shell, persisted local conversations, a DPAPI-protected Gemini key, streamed Gemini chat, and a small allowlisted set of fast local commands. See [JARVIS_PROGRESS.md](JARVIS_PROGRESS.md) for verified behavior and remaining work.
+The current development build has a native WPF shell, persisted local conversations and working mode, a DPAPI-protected Gemini key, streamed Gemini chat, bounded local file workflows, reminders, memory, project tools, and background build/test tasks. See [JARVIS_PROGRESS.md](JARVIS_PROGRESS.md) and [progress_update.md](progress_update.md) for verified behavior and remaining work.
 
 ## Requirements
 
@@ -33,9 +33,15 @@ Select a project workspace in Settings, then ask JARVIS to `build project` or `t
 
 Use `show JARVIS diagnostics` to view recent local-command, Gemini, speech recognition, and speech output timing percentiles and model/tool call counts. Measurements are kept locally and omit prompts, transcripts, API keys, and tool arguments.
 
+## Local files and modes
+
+Try `find files containing physics` to search filenames in Desktop, Documents, and Downloads. JARVIS skips linked folders, limits traversal and result counts, and returns paths so you can choose a file. When Gemini requests a local filename search or text-file read, JARVIS previews the names or file details and asks before sharing them. Supported text files are limited to 1 MB and to those three user folders; binary files and linked paths are excluded.
+
+Choose Personal, Study, Development, Research, Focus, System, or Creator mode from the mode selector. Each mode has distinct response guidance, and JARVIS remembers your selection in local preferences.
+
 ## Privacy
 
-Conversation history and settings live under `%LOCALAPPDATA%\Jarvis`. The Gemini API key is protected using Windows DPAPI. When cloud chat is used, the text of the current conversation is sent to Google Gemini. Local quick commands do not require network access. JARVIS does not record audio or capture the screen in the background.
+Conversation history and settings live under `%LOCALAPPDATA%\Jarvis`. The Gemini API key is protected using Windows DPAPI. When cloud chat is used, the text of the current conversation is sent to Google Gemini. Local quick commands do not require network access. For cloud-requested file search, matching names and paths are shared only after approval; file contents are read and sent only after a separate approval. JARVIS does not record audio or capture the screen in the background.
 
 ## Project layout
 
