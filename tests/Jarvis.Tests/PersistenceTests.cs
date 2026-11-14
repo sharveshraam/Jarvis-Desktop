@@ -1,0 +1,66 @@
+using System.Text;
+using Jarvis.Core;
+using Jarvis.Infrastructure;
+using Microsoft.Data.Sqlite;
+using Xunit;
+
+namespace Jarvis.Tests;
+
+public sealed class PersistenceTests
+{
+    [Fact]
+    public async Task SqliteConversationStoreKeepsMessagesInOrder()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"jarvis-test-{Guid.NewGuid():N}");
+        try
+        {
+            var store = new SqliteConversationStore(Path.Combine(directory, "history.db"));
+            await store.InitializeAsync();
+            var first = new ChatMessage("one", ChatRole.User, "hello", DateTimeOffset.UtcNow.AddSeconds(-1));
+            var second = new ChatMessage("two", ChatRole.Assistant, "hi", DateTimeOffset.UtcNow);
+            await store.AddAsync(first);
+            await store.AddAsync(second);
+
+            var messages = await store.GetRecentAsync(10);
+            Assert.Collection(messages,
+                item => Assert.Equal(first, item),
+                item => Assert.Equal(second, item));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (Directory.Exists(directory))
+            {
+                foreach (var file in Directory.EnumerateFiles(directory)) File.Delete(file);
+                Directory.Delete(directory);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task DpapiSecretStoreProtectsAndRestoresASecret()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"jarvis-secret-test-{Guid.NewGuid():N}");
+        const string testSecret = "synthetic-test-key-123";
+        try
+        {
+            var store = new DpapiSecretStore(directory);
+            await store.SetAsync("gemini-api-key", testSecret);
+
+            var storedBytes = await File.ReadAllBytesAsync(Path.Combine(directory, "gemini-api-key.dpapi"));
+            Assert.Equal(-1, storedBytes.AsSpan().IndexOf(Encoding.UTF8.GetBytes(testSecret)));
+            Assert.Equal(testSecret, await store.GetAsync("gemini-api-key"));
+
+            await store.DeleteAsync("gemini-api-key");
+            Assert.Null(await store.GetAsync("gemini-api-key"));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                foreach (var file in Directory.EnumerateFiles(directory)) File.Delete(file);
+                Directory.Delete(directory);
+            }
+        }
+    }
+}

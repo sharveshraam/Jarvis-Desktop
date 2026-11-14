@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <ProjectReference Include="..\..\src\Jarvis.Core\Jarvis.Core.csproj" />
+    <ProjectReference Include="..\..\src\Jarvis.Windows\Jarvis.Windows.csproj" />
+    <ProjectReference Include="..\..\src\Jarvis.Infrastructure\Jarvis.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
