@@ -140,6 +140,23 @@ public interface IProjectTaskCoordinator
     Task<bool> CancelAsync(string id, CancellationToken cancellationToken = default);
 }
 
+public sealed record JarvisPerformanceSample(string Id, DateTimeOffset CompletedAt, string ExecutionPath, string ModelId,
+    long TotalDurationMs, long? FirstOutputMs, long ModelDurationMs, long ToolDurationMs, long SpeechInputDurationMs, long SpeechDurationMs,
+    int ModelCallCount, int ToolCallCount, bool Succeeded, bool Canceled);
+
+public sealed record JarvisPerformanceDiagnostics(int SampleCount, int LocalSampleCount, int GeminiSampleCount,
+    long? LocalP50Ms, long? LocalP90Ms, long? LocalP95Ms, long? GeminiP50Ms, long? GeminiP90Ms, long? GeminiP95Ms,
+    long? GeminiFirstOutputP50Ms, long? GeminiFirstOutputP90Ms, long? GeminiModelP50Ms, long? GeminiToolP50Ms,
+    long? SpeechInputP50Ms, long? SpeechInputP90Ms, long? SpeechP50Ms, long? SpeechP90Ms, int FailedCount, int CanceledCount,
+    int ModelCallCount, int ToolCallCount, DateTimeOffset? LastSampleAt);
+
+public interface IPerformanceTelemetry
+{
+    Task InitializeAsync(CancellationToken cancellationToken = default);
+    Task RecordAsync(JarvisPerformanceSample sample, CancellationToken cancellationToken = default);
+    Task<JarvisPerformanceDiagnostics> GetDiagnosticsAsync(CancellationToken cancellationToken = default);
+}
+
 public interface IMemoryStore
 {
     Task InitializeAsync(CancellationToken cancellationToken = default);

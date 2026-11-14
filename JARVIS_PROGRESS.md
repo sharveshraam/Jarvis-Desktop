@@ -29,15 +29,16 @@
 | Desktop text files | Approval-gated new .txt/.md creation; no overwrite; bounded text read for selected formats; traversal blocked; tests cover approve, decline, and read |
 | System information | RAM usage read directly from Windows; local routing covered by a deterministic test |
 | File discovery | Bounded local recursive PDF search across Desktop, Documents, and Downloads; skips junctions and reports when the search cap is reached |
-| Speech recognition and TTS | Local System.Speech dictation button with review-before-send; optional read-aloud preference off by default; live microphone and voice checks pending |
+| Speech recognition and TTS | Local System.Speech dictation button with review-before-send; optional read-aloud preference off by default; recognition and playback duration now measured locally; live microphone, voice quality and interruption checks pending |
 | Background project jobs | First slice implemented: approved dotnet build/test jobs run off the UI thread; task state/progress/output persist in SQLite; queued jobs can resume after restart, while in-progress work is marked interrupted and never replayed; cancel and tray completion notifications are wired |
+| Performance diagnostics | Local-only timing samples for local/Gemini turns and speech capture/output; reports p50/p90/p95 latencies, call counts and failures through `show JARVIS diagnostics`; telemetry excludes prompts, transcripts, API keys and tool payloads |
 | Windows build workflow | Added; portable ZIP artifact |
 | Installer | Not implemented yet |
 
 ## Verification completed
 
 - .NET 10.0.404 Release solution build: 0 warnings, 0 errors.
-- Automated tests: 44 passed, 0 failed (previous coverage plus persisted task progress, restart interruption behavior, project job routing, and approval-gated task queueing).
+- Automated tests: 46 passed, 0 failed (previous coverage plus content-free telemetry persistence, latency percentile aggregation, and local diagnostics routing).
 - Latest full Release solution build: 0 warnings, 0 errors.
 - An earlier development milestone was published and opened as a self-contained `win-x64` single-file build; latest structured-tool and speech changes still need a fresh runtime smoke check.
 - Live UI smoke check: `calculate 17 * 23` returned `391` with the `Completed locally` status.
@@ -45,4 +46,4 @@
 
 ## Release notes
 
-The current build is an early development milestone, not a complete release. File support covers Desktop actions plus a selected project workspace with approval-gated source disclosure and file changes. Gemini tools can request these actions within a bounded call loop. Reminders support relative minute/hour/day times and tray notification. Voice APIs are wired, but microphone/device behavior, speech latency, and the new tool loop against a live Gemini account have not been verified. It still needs broader file and app workflows, persistent memory, background tasks, fuller performance evaluation, and an installer before release claims are appropriate.
+The current build is an early development milestone, not a complete release. File support covers Desktop actions plus a selected project workspace with approval-gated source disclosure and file changes. Gemini tools can request these actions within a bounded call loop. Reminders support relative minute/hour/day times and tray notification. Local memory, background .NET build/test tasks, and content-free timing diagnostics are implemented. Voice quality, device behavior and the new tool loop against a live Gemini account have not been verified. It still needs broader file and app workflows, richer task recovery/control, system diagnostics, fuller performance and voice evaluation, and an installer before release claims are appropriate.

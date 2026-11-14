@@ -16,8 +16,9 @@ public sealed partial class LocalCommandRouter
     private readonly IReminderStore? _reminders;
     private readonly IMemoryStore? _memory;
     private readonly IProjectTaskCoordinator? _projectTasks;
+    private readonly IPerformanceTelemetry? _performance;
 
-    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null, ISystemInfoProvider? systemInfo = null, ILocalFileSearch? fileSearch = null, IApplicationLauncher? applicationLauncher = null, IReminderStore? reminders = null, IMemoryStore? memory = null, IProjectTaskCoordinator? projectTasks = null)
+    public LocalCommandRouter(IActionApproval? approval = null, DesktopFileSystem? files = null, ISystemInfoProvider? systemInfo = null, ILocalFileSearch? fileSearch = null, IApplicationLauncher? applicationLauncher = null, IReminderStore? reminders = null, IMemoryStore? memory = null, IProjectTaskCoordinator? projectTasks = null, IPerformanceTelemetry? performance = null)
     {
         _approval = approval;
         _files = files;
@@ -27,6 +28,7 @@ public sealed partial class LocalCommandRouter
         _reminders = reminders;
         _memory = memory;
         _projectTasks = projectTasks;
+        _performance = performance;
     }
 
     private static readonly IReadOnlyDictionary<string, string> Applications = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -47,6 +49,8 @@ public sealed partial class LocalCommandRouter
     {
         var normalized = text.Trim();
         var now = DateTimeOffset.Now;
+        if (Regex.IsMatch(normalized, @"^(?:show|open|check)(?:\s+my)?\s+(?:jarvis )?(?:performance|diagnostics|diagnostic report)\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+            return await GetDiagnosticsAsync(cancellationToken);
         if (Regex.IsMatch(normalized, @"^(?:build|compile)(?:\s+my)?\s+project\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
             return await QueueProjectTaskAsync(JarvisBackgroundTaskKind.BuildProject, cancellationToken);
         if (Regex.IsMatch(normalized, @"^(?:test|run tests on|run the tests for)(?:\s+my)?\s+project\??$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
@@ -207,6 +211,22 @@ public sealed partial class LocalCommandRouter
         if (_projectTasks is null) return new(true, "Background project tasks are unavailable.", false);
         var task = await _projectTasks.QueueAsync(kind, cancellationToken);
         return new(true, $"Queued {kind} as task {task.Id}. I’ll run it in the background; use ‘show project tasks’ to check progress.");
+    }
+
+    private async Task<LocalCommandResult> GetDiagnosticsAsync(CancellationToken cancellationToken)
+    {
+        if (_performance is null) return new(true, "Performance diagnostics are unavailable.", false);
+        var d = await _performance.GetDiagnosticsAsync(cancellationToken);
+        if (d.SampleCount == 0) return new(true, "No performance samples yet. Local and Gemini interaction timings will appear here after you use JARVIS.");
+        static string Ms(long? value) => value is null ? "n/a" : $"{value.Value} ms";
+        var text = $"JARVIS diagnostics (local-only measurements; {d.SampleCount} recent interactions)\n" +
+            $"Local commands: {d.LocalSampleCount}; total p50/p90/p95 {Ms(d.LocalP50Ms)} / {Ms(d.LocalP90Ms)} / {Ms(d.LocalP95Ms)}\n" +
+            $"Gemini requests: {d.GeminiSampleCount}; total p50/p90/p95 {Ms(d.GeminiP50Ms)} / {Ms(d.GeminiP90Ms)} / {Ms(d.GeminiP95Ms)}\n" +
+            $"Gemini first output p50/p90 {Ms(d.GeminiFirstOutputP50Ms)} / {Ms(d.GeminiFirstOutputP90Ms)}; model time p50 {Ms(d.GeminiModelP50Ms)}; tool time p50 {Ms(d.GeminiToolP50Ms)}\n" +
+            $"Speech recognition p50/p90 {Ms(d.SpeechInputP50Ms)} / {Ms(d.SpeechInputP90Ms)}; speech output p50/p90 {Ms(d.SpeechP50Ms)} / {Ms(d.SpeechP90Ms)}\n" +
+            $"Model calls {d.ModelCallCount}; local tool calls {d.ToolCallCount}\n" +
+            $"Failed interactions {d.FailedCount}; canceled {d.CanceledCount}. No prompts or transcripts are stored in these measurements.";
+        return new(true, text);
     }
 
     public async Task<LocalCommandResult> CreateDesktopFolderAsync(string name, CancellationToken cancellationToken = default)

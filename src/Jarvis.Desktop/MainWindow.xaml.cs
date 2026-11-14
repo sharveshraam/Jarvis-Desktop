@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -132,6 +133,9 @@ public partial class MainWindow : Window
             return;
         }
         var request = new CancellationTokenSource();
+        var listenTimer = Stopwatch.StartNew();
+        var recognized = false;
+        var canceled = false;
         _voiceRequest = request;
         var viewModel = (ChatViewModel)DataContext;
         VoiceButton.Content = "■";
@@ -142,6 +146,7 @@ public partial class MainWindow : Window
             if (string.IsNullOrWhiteSpace(transcript)) viewModel.Status = "No speech recognized";
             else
             {
+                recognized = true;
                 viewModel.Input = string.IsNullOrWhiteSpace(viewModel.Input)
                     ? transcript
                     : $"{viewModel.Input.TrimEnd()} {transcript}";
@@ -149,10 +154,19 @@ public partial class MainWindow : Window
                 InputBox.Focus();
             }
         }
-        catch (OperationCanceledException) { viewModel.Status = "Listening stopped"; }
+        catch (OperationCanceledException) { canceled = true; viewModel.Status = "Listening stopped"; }
         catch (Exception ex) { viewModel.Status = $"Microphone unavailable: {ex.Message}"; }
         finally
         {
+            listenTimer.Stop();
+            try
+            {
+                await App.Current.Services().GetRequiredService<IPerformanceTelemetry>().RecordAsync(
+                    new JarvisPerformanceSample(Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow, "speech", string.Empty,
+                        listenTimer.ElapsedMilliseconds, recognized ? listenTimer.ElapsedMilliseconds : null, 0, 0,
+                        listenTimer.ElapsedMilliseconds, 0, 0, 0, recognized, canceled));
+            }
+            catch (Exception ex) { Debug.WriteLine($"Speech telemetry was unavailable: {ex.Message}"); }
             if (ReferenceEquals(_voiceRequest, request)) _voiceRequest = null;
             request.Dispose();
             VoiceButton.Content = "🎙";

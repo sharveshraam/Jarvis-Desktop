@@ -29,6 +29,10 @@ The published application contains no API key. Configure the key from JARVIS Set
 
 Select a project workspace in Settings, then ask JARVIS to `build project` or `test project`. These fixed .NET commands require confirmation and run in the background without restoring packages. Use `show project tasks` to list jobs, `show task <id>` for the output, and `cancel task <id>` to stop an active job. Running jobs interrupted by an app restart are recorded and are not rerun automatically. The current task runner supports .NET solutions and projects only.
 
+## Performance diagnostics
+
+Use `show JARVIS diagnostics` to view recent local-command, Gemini, speech recognition, and speech output timing percentiles and model/tool call counts. Measurements are kept locally and omit prompts, transcripts, API keys, and tool arguments.
+
 ## Privacy
 
 Conversation history and settings live under `%LOCALAPPDATA%\Jarvis`. The Gemini API key is protected using Windows DPAPI. When cloud chat is used, the text of the current conversation is sent to Google Gemini. Local quick commands do not require network access. JARVIS does not record audio or capture the screen in the background.

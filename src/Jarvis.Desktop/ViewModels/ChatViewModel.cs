@@ -21,6 +21,7 @@ public sealed class ChatViewModel : INotifyPropertyChanged
     private readonly IUserProfileStore _profileStore;
     private readonly IUserPreferencesStore _preferencesStore;
     private readonly ISpeechOutputService _speechOutput;
+    private readonly IPerformanceTelemetry _performance;
     private string _input = string.Empty;
     private string _status = "Local commands ready";
     private JarvisMode _mode = JarvisMode.Personal;
@@ -28,7 +29,7 @@ public sealed class ChatViewModel : INotifyPropertyChanged
     private CancellationTokenSource? _activeRequest;
     private CancellationTokenSource? _speechRequest;
 
-    public ChatViewModel(IAiProvider ai, IAgentToolExecutor agentTools, IConversationStore store, LocalCommandRouter local, IUserProfileStore profileStore, IUserPreferencesStore preferencesStore, ISpeechOutputService speechOutput)
+    public ChatViewModel(IAiProvider ai, IAgentToolExecutor agentTools, IConversationStore store, LocalCommandRouter local, IUserProfileStore profileStore, IUserPreferencesStore preferencesStore, ISpeechOutputService speechOutput, IPerformanceTelemetry performance)
     {
         _ai = ai;
         _agentTools = agentTools;
@@ -37,6 +38,7 @@ public sealed class ChatViewModel : INotifyPropertyChanged
         _profileStore = profileStore;
         _preferencesStore = preferencesStore;
         _speechOutput = speechOutput;
+        _performance = performance;
         Messages.CollectionChanged += (_, _) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsEmpty)));
         SendCommand = new AsyncRelayCommand(SendAsync, () => !IsBusy && !string.IsNullOrWhiteSpace(Input));
         CancelCommand = new RelayCommand(Cancel, () => IsBusy);
@@ -58,6 +60,17 @@ public sealed class ChatViewModel : INotifyPropertyChanged
     {
         var text = Input.Trim();
         if (text.Length == 0 || IsBusy) return;
+        var requestTimer = Stopwatch.StartNew();
+        long? firstOutputMs = null;
+        long modelDurationMs = 0;
+        long toolDurationMs = 0;
+        long speechDurationMs = 0;
+        var modelCallCount = 0;
+        var toolCallCountMetric = 0;
+        var executionPath = "local";
+        var modelId = string.Empty;
+        var succeeded = false;
+        var canceled = false;
         Input = string.Empty;
         var user = NewMessage(ChatRole.User, text);
         Messages.Add(user);
@@ -68,17 +81,21 @@ public sealed class ChatViewModel : INotifyPropertyChanged
         {
             Status = "Checking local commands…";
             var localResult = await _local.TryRunAsync(text, _activeRequest.Token);
+            if (localResult.Handled) firstOutputMs = requestTimer.ElapsedMilliseconds;
             string answer;
             if (localResult.Handled)
             {
                 answer = localResult.Response ?? "Done.";
+                succeeded = localResult.Succeeded;
                 Status = "Completed locally";
             }
             else
             {
+                executionPath = "gemini";
                 Status = "Sending this conversation to Gemini…";
                 var history = Messages.Where(m => m.Id != user.Id).TakeLast(12).ToArray();
                 var userProfile = await _profileStore.GetAsync(_activeRequest.Token);
+                modelId = (await _preferencesStore.GetAsync(_activeRequest.Token)).GeminiModel;
                 var responseTimer = Stopwatch.StartNew();
                 var partial = new StringBuilder();
                 ChatMessage? streamedMessage = null;
@@ -88,23 +105,31 @@ public sealed class ChatViewModel : INotifyPropertyChanged
                 for (var turn = 0; turn < 3; turn++)
                 {
                     var functionCalls = new List<AiFunctionCall>();
-                    await foreach (var item in _ai.StreamAsync(
-                        new ChatRequest(history, text, Mode, userProfile, toolHistory), _activeRequest.Token))
+                    modelCallCount++;
+                    var modelTurnTimer = Stopwatch.StartNew();
+                    try
                     {
-                        if (!string.IsNullOrEmpty(item.Text))
+                        await foreach (var item in _ai.StreamAsync(
+                            new ChatRequest(history, text, Mode, userProfile, toolHistory), _activeRequest.Token))
                         {
-                            partial.Append(item.Text);
-                            if (streamedMessage is null)
+                            if (firstOutputMs is null && (!string.IsNullOrEmpty(item.Text) || item.FunctionCall is not null))
+                                firstOutputMs = requestTimer.ElapsedMilliseconds;
+                            if (!string.IsNullOrEmpty(item.Text))
                             {
-                                streamedMessage = NewMessage(ChatRole.Assistant, string.Empty);
-                                Messages.Add(streamedMessage);
-                                Status = $"Gemini · first text in {responseTimer.Elapsed.TotalSeconds:0.0}s";
+                                partial.Append(item.Text);
+                                if (streamedMessage is null)
+                                {
+                                    streamedMessage = NewMessage(ChatRole.Assistant, string.Empty);
+                                    Messages.Add(streamedMessage);
+                                    Status = $"Gemini · first text in {responseTimer.Elapsed.TotalSeconds:0.0}s";
+                                }
+                                streamedMessage = streamedMessage with { Content = partial.ToString() };
+                                Messages[^1] = streamedMessage;
                             }
-                            streamedMessage = streamedMessage with { Content = partial.ToString() };
-                            Messages[^1] = streamedMessage;
+                            if (item.FunctionCall is not null) functionCalls.Add(item.FunctionCall);
                         }
-                        if (item.FunctionCall is not null) functionCalls.Add(item.FunctionCall);
                     }
+                    finally { modelTurnTimer.Stop(); modelDurationMs += modelTurnTimer.ElapsedMilliseconds; }
 
                     if (functionCalls.Count == 0)
                     {
@@ -122,14 +147,19 @@ public sealed class ChatViewModel : INotifyPropertyChanged
                         else
                         {
                             Status = $"Running local tool: {functionCall.Name}…";
+                            var toolTimer = Stopwatch.StartNew();
                             toolResponse = await _agentTools.ExecuteAsync(functionCall, _activeRequest.Token);
+                            toolTimer.Stop();
+                            toolDurationMs += toolTimer.ElapsedMilliseconds;
                             toolCallCount++;
+                            toolCallCountMetric++;
                         }
                         toolResults.Add(new AiToolResult(functionCall.Name, toolResponse, functionCall.Id));
                     }
                     toolHistory.Add(new AiToolRound(functionCalls[0].ModelContent, toolResults));
                 }
 
+                succeeded = gotFinalText;
                 if (!gotFinalText)
                 {
                     partial.AppendLine().Append("I stopped after the three-step tool limit. Ask me to continue with the next part.");
@@ -152,17 +182,18 @@ public sealed class ChatViewModel : INotifyPropertyChanged
                 streamedMessage = streamedMessage with { Content = answer };
                 if (Messages.Count == 0 || Messages[^1].Id != streamedMessage.Id) Messages.Add(streamedMessage);
                 await _store.AddAsync(streamedMessage);
-                await SpeakIfEnabledAsync(answer);
+                speechDurationMs += await SpeakIfEnabledAsync(answer);
                 return;
             }
 
             var assistant = NewMessage(ChatRole.Assistant, answer);
             Messages.Add(assistant);
             await _store.AddAsync(assistant);
-            await SpeakIfEnabledAsync(answer);
+            speechDurationMs += await SpeakIfEnabledAsync(answer);
         }
         catch (OperationCanceledException)
         {
+            canceled = true;
             Status = "Request cancelled";
             var assistant = NewMessage(ChatRole.Assistant, "Stopped. No further action was taken.");
             Messages.Add(assistant);
@@ -177,6 +208,14 @@ public sealed class ChatViewModel : INotifyPropertyChanged
         }
         finally
         {
+            requestTimer.Stop();
+            try
+            {
+                await _performance.RecordAsync(new JarvisPerformanceSample(Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow,
+                    executionPath, modelId, requestTimer.ElapsedMilliseconds, firstOutputMs, modelDurationMs, toolDurationMs,
+                    0, speechDurationMs, modelCallCount, toolCallCountMetric, succeeded, canceled));
+            }
+            catch (Exception ex) { Debug.WriteLine($"Performance telemetry was unavailable: {ex.Message}"); }
             _activeRequest?.Dispose();
             _activeRequest = null;
             IsBusy = false;
@@ -189,17 +228,18 @@ public sealed class ChatViewModel : INotifyPropertyChanged
         _speechRequest?.Cancel();
     }
 
-    private async Task SpeakIfEnabledAsync(string text)
+    private async Task<long> SpeakIfEnabledAsync(string text)
     {
         UserPreferences preferences;
         try { preferences = await _preferencesStore.GetAsync(); }
-        catch { return; }
-        if (!preferences.SpeakResponses) return;
+        catch { return 0; }
+        if (!preferences.SpeakResponses) return 0;
 
         var speechRequest = new CancellationTokenSource();
         _speechRequest?.Cancel();
         _speechRequest?.Dispose();
         _speechRequest = speechRequest;
+        var timer = Stopwatch.StartNew();
         Status = "Speaking response…";
         try { await _speechOutput.SpeakAsync(text, speechRequest.Token); }
         catch (OperationCanceledException) { Status = "Speech stopped"; }
@@ -208,7 +248,9 @@ public sealed class ChatViewModel : INotifyPropertyChanged
         {
             if (ReferenceEquals(_speechRequest, speechRequest)) _speechRequest = null;
             speechRequest.Dispose();
+            timer.Stop();
         }
+        return timer.ElapsedMilliseconds;
     }
 
     private async Task LoadAsync()

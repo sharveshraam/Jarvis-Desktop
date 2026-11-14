@@ -37,6 +37,7 @@ public partial class App : Application
                 services.AddSingleton<IReminderStore>(_ => new SqliteReminderStore(Path.Combine(appData, "jarvis.db")));
                 services.AddSingleton<IMemoryStore>(_ => new SqliteMemoryStore(Path.Combine(appData, "jarvis.db")));
                 services.AddSingleton<IBackgroundTaskStore>(_ => new SqliteBackgroundTaskStore(Path.Combine(appData, "jarvis.db")));
+                services.AddSingleton<IPerformanceTelemetry>(_ => new SqlitePerformanceTelemetry(Path.Combine(appData, "jarvis.db")));
                 services.AddSingleton<BackgroundTaskCoordinator>();
                 services.AddSingleton<IProjectTaskCoordinator>(sp => sp.GetRequiredService<BackgroundTaskCoordinator>());
                 services.AddHostedService(sp => sp.GetRequiredService<BackgroundTaskCoordinator>());
@@ -70,6 +71,7 @@ public partial class App : Application
             await _host.Services.GetRequiredService<IConversationStore>().InitializeAsync();
             await _host.Services.GetRequiredService<IReminderStore>().InitializeAsync();
             await _host.Services.GetRequiredService<IMemoryStore>().InitializeAsync();
+            await _host.Services.GetRequiredService<IPerformanceTelemetry>().InitializeAsync();
             var backgroundStore = _host.Services.GetRequiredService<IBackgroundTaskStore>();
             await backgroundStore.InitializeAsync();
             await backgroundStore.MarkRunningInterruptedAsync();
